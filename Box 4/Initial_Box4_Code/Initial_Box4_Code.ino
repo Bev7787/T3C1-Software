@@ -86,6 +86,6 @@ void changeTopStripCol() {
       pixels.setPixelColor(0, 0, 255);
       pixels.show();
     }
-    lightSequence ++;
+    lightSequence =0;
   }
 }
