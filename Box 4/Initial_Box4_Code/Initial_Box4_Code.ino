@@ -69,22 +69,23 @@ void changeTopStripCol() {
     for (int i = 0; i < numStripPixels; i++) {
       pixels.setPixelColor(255, 0, 0);
       pixels.show();
-      lightSequence ++;
     }
-    
+    lightSequence ++;
   }
+  
   else if (lightSequence == 1) {
     for (int i = 0; i < numStripPixels; i++) {
       pixels.setPixelColor(0, 255, 0);
       pixels.show();
-      lightSequence ++;
     }
+    lightSequence ++;
   }
+  
   else {
     for (int i = 0; i < numStripPixels; i++) {
       pixels.setPixelColor(0, 0, 255);
       pixels.show();
-      lightSequence = 0;
     }
+    lightSequence ++;
   }
 }
