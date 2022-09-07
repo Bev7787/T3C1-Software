@@ -12,7 +12,7 @@ int servoPin = 2;
 int servoPos = 0;
 
 int stripPin = 3;
-int numStripPixels = 10;    // change this value to however pixels we have in the strip
+int numStripPixels = 10;    // change this value to however many pixels we have in the strip
 int lightSequence = 0;
 
 
