@@ -32,7 +32,7 @@ void setup() {
 
   
 
-  Serial.being(9600);
+  Serial.begin(9600);
 
 }
 
