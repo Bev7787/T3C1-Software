@@ -6,86 +6,78 @@ Servo myServo;
 
 int sensorState = 0;
 int lastState = HIGH;
-int sensorPin = 1;
+int sensorPin = 7;
 
-int servoPin = 2;
-int servoPos = 0;
+Servo servo_10;
+int topServoPin = 2;
+int topServoPos = 1; //keeps incrementing everytime the button is pressed and the lights change
 
-int stripPin = 3;
-int numStripPixels = 10;    // change this value to however many pixels we have in the strip
+int stripPin = 4;
+int numStripPixels = 32;    // change this value to however many pixels we have in the strip
 int lightSequence = 0;
 
 
 Adafruit_NeoPixel pixels(numStripPixels, stripPin, NEO_GRB + NEO_KHZ800);
 
 
-
-
 void setup() {
   pinMode(sensorPin, INPUT);
   digitalWrite(sensorPin, HIGH);
-
-  myServo.attach(servoPin);
-  myServo.write(seroPos);
-
   pixels.begin();
-
+  servo_10.attach(10, 500, 2500);
   
-
   Serial.begin(9600);
-
 }
 
 void loop() {
-  sensorState = digialRead(sensorPin);
+  sensorState = digitalRead(sensorPin);
 
   if (sensorState == LOW && lastState == HIGH) {
-    topServoFunc();
+    Serial.println("Ball Passed Through Sensor");
     changeTopStripCol();
   }
 
-
   lastState = sensorState;
-
-
 }
 
+void changeTopServo(int topServoPos){
+  if(topServoPos % 2 == 0){ //for every second ball, the servo will rotate 90 degrees 
+      servo_10.write(90);
+    }
+  if(topServoPos % 2 != 0){
+      servo_10.write(0);
+    }
 
-void topServoFunc() {
-  if (servoPos == 0) {
-    myservo.write(90);
-    servoPos = 90;
-  }
-
-  if (servoPos == 90) {
-    myservo.write(0);
-    seroPos = 0;
-  }
 }
-
 
 void changeTopStripCol() {
   if (lightSequence == 0) {
+    changeTopServo(topServoPos);
     for (int i = 0; i < numStripPixels; i++) {
-      pixels.setPixelColor(255, 0, 0);
+      pixels.setPixelColor(i, pixels.Color(random(1, 254), 0, 0));
       pixels.show();
     }
     lightSequence ++;
+    topServoPos++;
   }
   
   else if (lightSequence == 1) {
+    changeTopServo(topServoPos);
     for (int i = 0; i < numStripPixels; i++) {
-      pixels.setPixelColor(0, 255, 0);
+      pixels.setPixelColor(i, pixels.Color(0, random(1, 254), 0));
       pixels.show();
     }
     lightSequence ++;
+    topServoPos++;
   }
   
   else {
+    changeTopServo(topServoPos);
     for (int i = 0; i < numStripPixels; i++) {
-      pixels.setPixelColor(0, 0, 255);
+     pixels.setPixelColor(i, pixels.Color(0, 0, random(1, 254)));
       pixels.show();
     }
     lightSequence =0;
+    topServoPos++;
   }
 }
