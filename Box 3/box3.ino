@@ -65,35 +65,30 @@ void loop()
   int ballSen2State = digitalRead(ballPin2);
   
   if (ballSensor1 == LOW && lastState1 == HIGH) 
-   motortimestamp1 = millis() + 1000; 
+   motortimestamp1 = millis(); 
   else if (ballSensor2 == LOW && lastState2 == HIGH)
    motortimestamp2 = millis() + 1000; 
   lastState1 = ballSen1State;
   lastState2 = ballSen2State;
   
-  if (millis() >= motortimestamp1)
+  if ((unsigned char)(millis() - motortimestamp) >= 1000)
     runMotor(in1, in2, motorSen1);
-  else if (millis() >= motortimestamp2)
-    runMotor(in3, in4, motorSen2);
+  //else if (millis() >= motortimestamp2)
+  //  runMotor(in3, in4, motorSen2);
 }
 
 void runMotor(int in1, int in2, int pin) {
-	// while motor has not hit limit switch
-  	// run motor
-  	// run forwards
- 	// move gives time for the section to move away from the limiter.
-  	unsigned long move = millis() + 250;
+ 	  // Run once to move away from sensor.
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);
+    // Run until sensor detected.
   	int motorSenState = digitalRead(pin);
-  	// Move a little bit to 
-    while (millis() >= move) {
-      	digitalWrite(in1, HIGH);
-        digitalWrite(in2, LOW);
-    }
-    while (motorSenState == LOW) {
-        digitalWrite(in1, HIGH);
-        digitalWrite(in2, LOW);
-       	motorSenState = digitalRead(pin)
-    }
+  	while (motorSenState == LOW) {
+      digitalWrite(in1, HIGH);
+      digitalWrite(in2, LOW);
+      motorSenState = digitalRead(pin)
+    } 
+    // Turn off motors.
     digitalWrite(in1, LOW);
     digitalWrite(in2, LOW);
 }
