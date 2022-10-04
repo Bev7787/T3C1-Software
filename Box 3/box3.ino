@@ -31,11 +31,14 @@ long timeToSpiral = 2000; // constant set for now
 
 struct Ball
 {
-  long enterTime;
+  long enterTimeTop;
+  long enterRetracePath;
 }
 
 LinkedList<Ball>
-    ballsInSystem = LinkedList<Ball>();
+    ballsInSystemQueueL = LinkedList<Ball>();
+LinkedList<Ball>
+    ballsInSystemQueueR = LinkedList<Ball>();
 
 void setup()
 {
@@ -78,24 +81,36 @@ void setup()
 
 void leftIndicator()
 {
-  Ball bl = {millis()};
-  // set the left indicators on
+  Ball bl = {millis(), -1}; // enter retrace path -1 initially
+  // add bl to the ballsInSystemQueue
+  ballsInSystemQueueL.add(bl);
+  //  set the left indicators on
 }
 
 void rightIndicator()
 {
-  Ball br = {millis()};
-  // set the right indicators on
+  Ball br = {millis(), -1}; // enter retrace path -1 initially
+  // add br to the ballsInSystemQueue
+  ballsInSystemQueueR.add(br);
+  //  set the right indicators on
 }
 
 void leftPath()
 {
-  // set the left indicators on
+  // left retrace led strip
+  // ..
+  // set the enterRetracePath time by removing the first one from the queue
+  Ball removedBallL = ballsInSystemQueueL.remove(0);
+  removedBallL.enterRetracePath = millis() - removedBallL.enterTimeTop;
 }
 
 void rightPath()
 {
-  // set the right indicators on
+  // right retrace led strip
+  // ..
+  // set the enterRetracePath time by removing the first one from the queue
+  Ball removedBallR = ballsInSystemQueueR.remove(0);
+  removedBallR.enterRetracePath = millis() - removedBallR.enterTimeTop;
 }
 
 void loop()
