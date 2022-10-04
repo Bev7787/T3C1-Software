@@ -36,9 +36,9 @@ struct Ball
 }
 
 LinkedList<Ball>
-    ballsInSystemQueueL = LinkedList<Ball>();
+    ballsInSystemQueueL = LinkedList<Ball>(); // left path queue
 LinkedList<Ball>
-    ballsInSystemQueueR = LinkedList<Ball>();
+    ballsInSystemQueueR = LinkedList<Ball>(); // right path queue
 
 void setup()
 {
@@ -85,6 +85,7 @@ void leftIndicator()
   // add bl to the ballsInSystemQueue
   ballsInSystemQueueL.add(bl);
   //  set the left indicators on
+  //..
 }
 
 void rightIndicator()
@@ -93,24 +94,29 @@ void rightIndicator()
   // add br to the ballsInSystemQueue
   ballsInSystemQueueR.add(br);
   //  set the right indicators on
+  //..
 }
 
 void leftPath()
 {
-  // left retrace led strip
-  // ..
   // set the enterRetracePath time by removing the first one from the queue
   Ball removedBallL = ballsInSystemQueueL.remove(0);
   removedBallL.enterRetracePath = millis() - removedBallL.enterTimeTop;
+  if (millis() - removedBallL.enterRetracePath >= retraceTime)
+  {
+    // trigger sprial LEDs
+  }
 }
 
 void rightPath()
 {
-  // right retrace led strip
-  // ..
   // set the enterRetracePath time by removing the first one from the queue
   Ball removedBallR = ballsInSystemQueueR.remove(0);
   removedBallR.enterRetracePath = millis() - removedBallR.enterTimeTop;
+  if (millis() - removedBallR.enterRetracePath >= retraceTime)
+  {
+    // trigger sprial LEDs
+  }
 }
 
 void loop()
