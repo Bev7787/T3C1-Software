@@ -123,67 +123,39 @@ void loop()
 {
   int ballSen1State = digitalRead(ballPin1);
   int ballSen2State = digitalRead(ballPin2);
-<<<<<<< HEAD
 
   if (ballSensor1 == LOW && lastState1 == HIGH)
     motortimestamp1 = millis() + 1000;
-=======
-  
-  if (ballSensor1 == LOW && lastState1 == HIGH) 
-   motortimestamp1 = millis(); 
->>>>>>> 1b5697aba84f317f6daacc2f4521157520f9fa82
+
   else if (ballSensor2 == LOW && lastState2 == HIGH)
     motortimestamp2 = millis() + 1000;
   lastState1 = ballSen1State;
   lastState2 = ballSen2State;
-<<<<<<< HEAD
 
-  if (millis() >= motortimestamp1)
-=======
-  
   if ((unsigned char)(millis() - motortimestamp) >= 1000)
->>>>>>> 1b5697aba84f317f6daacc2f4521157520f9fa82
     runMotor(in1, in2, motorSen1);
-  //else if (millis() >= motortimestamp2)
-  //  runMotor(in3, in4, motorSen2);
+  // else if (millis() >= motortimestamp2)
+  //   runMotor(in3, in4, motorSen2);
 }
 
-<<<<<<< HEAD
 void runMotor(int in1, int in2, int pin)
 {
-  // while motor has not hit limit switch
-  // run motor
-  // run forwards
-  // move gives time for the section to move away from the limiter.
-  unsigned long move = millis() + 250;
+  // Run once to move away from sensor.
+  digitalWrite(in1, HIGH);
+  digitalWrite(in2, LOW);
+  // Run until sensor detected.
   int motorSenState = digitalRead(pin);
-  // Move a little bit to
-  while (millis() >= move)
-  {
-    digitalWrite(in1, HIGH);
-    digitalWrite(in2, LOW);
-  }
   while (motorSenState == LOW)
   {
     digitalWrite(in1, HIGH);
-=======
-void runMotor(int in1, int in2, int pin) {
- 	  // Run once to move away from sensor.
-    digitalWrite(in1, HIGH);
-    digitalWrite(in2, LOW);
-    // Run until sensor detected.
-  	int motorSenState = digitalRead(pin);
-  	while (motorSenState == LOW) {
-      digitalWrite(in1, HIGH);
-      digitalWrite(in2, LOW);
-      motorSenState = digitalRead(pin)
-    } 
-    // Turn off motors.
-    digitalWrite(in1, LOW);
->>>>>>> 1b5697aba84f317f6daacc2f4521157520f9fa82
     digitalWrite(in2, LOW);
     motorSenState = digitalRead(pin)
   }
+  // Turn off motors.
   digitalWrite(in1, LOW);
   digitalWrite(in2, LOW);
+  motorSenState = digitalRead(pin)
+}
+digitalWrite(in1, LOW);
+digitalWrite(in2, LOW);
 }
