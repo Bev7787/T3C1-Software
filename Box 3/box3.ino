@@ -9,7 +9,12 @@ unsigned long balltimestamp1 = 0;
 unsigned long balltimestamp2 = 0;
 bool motorsenstate1 = false;
 bool motorsenstate2 = false;
-int lastState1 = HIGH;
+
+bool retraceLightLeft = false;
+bool retraceLightRight = false;
+bool spiralLed = false
+
+    int lastState1 = HIGH;
 int lastState2 = HIGH;
 
 // ball sensor pins placeholder
@@ -27,19 +32,20 @@ int in3 = 10;
 int in4 = 15;
 int motorSen2 = 3;
 
-long retraceTime = 1000;  // constant set for now
-long timeToSpiral = 2000; // constant set for now
+long RETRACE_TIME = 1000;   // constant set for now
+long TIME_TO_SPIRAL = 2000; // constant set for now
 
 struct Ball
 {
-  unsigned long enterTimeTop;
-  unsigned long enterRetracePath;
-}
+  unsigned long reedSwitchTimestamp;
+};
 
 LinkedList<Ball>
     ballsInSystemQueueL = LinkedList<Ball>(); // left path queue
 LinkedList<Ball>
     ballsInSystemQueueR = LinkedList<Ball>(); // right path queue
+
+LinkedList<Ball> ballsInSpiral = LinkedList<Ball>();
 
 void setup()
 {
@@ -72,45 +78,40 @@ void setup()
   PMSK1 |= B00000011;
 
   // Attach reed switch interrupts
-  attachInterrupt(digitalPinToInterrupt(motorSen1), leftPath, RISING);
-  attachInterrupt(digitalPinToInterrupt(motorSen2), rightPath, RISING);
+  attachInterrupt(digitalPinToInterrupt(motorSen1), leftRetracePath, RISING);
+  attachInterrupt(digitalPinToInterrupt(motorSen2), rightRetracePath, RISING);
 }
 
-ISR (PCINT1_vect) {
-  if (digitalRead(ballPin1) == LOW) {
+ISR(PCINT1_vect)
+{
+  if (digitalRead(ballPin1) == LOW)
+  {
     // set boolean
     balltimestamp1 = millis();
     motorsenstate1 = true;
   }
-  if (digitalRead(ballPin2) == LOW) {
+  if (digitalRead(ballPin2) == LOW)
+  {
     // set boolean
     balltimestamp2 = millis();
     motorsenstate2 = true;
   }
 }
 
-void leftPath()
+void leftRetracePath()
 {
   motorsenstate1 = false;
-  // set the enterRetracePath time by removing the first one from the queue
-  /*Ball removedBallL = ballsInSystemQueueL.remove(0);
-  removedBallL.enterRetracePath = millis() - removedBallL.enterTimeTop;
-  if (millis() - removedBallL.enterRetracePath >= retraceTime)
-  {
-    // trigger sprial LEDs
-  }*/
+  retraceLightLeft = true;
+  Ball bl = {millis()};
+  ballsInSystemQueueL.add(bl);
 }
 
-void rightPath()
+void rightRetracePath()
 {
   motorsenstate2 = false;
-  // set the enterRetracePath time by removing the first one from the queue
-  /*Ball removedBallR = ballsInSystemQueueR.remove(0);
-  removedBallR.enterRetracePath = millis() - removedBallR.enterTimeTop;
-  if (millis() - removedBallR.enterRetracePath >= retraceTime)
-  {
-    // trigger sprial LEDs
-  }*/
+  retraceLightRight = true;
+  Ball br = {millis()};
+  ballsInSystemQueueR.add(bl);
 }
 
 void loop()
@@ -126,20 +127,45 @@ void loop()
   lastState1 = ballSen1State;
   lastState2 = ballSen2State;
   */
- // TODO: Implement interrupts
+  // TODO: Implement interrupts
   if ((unsigned long)(millis() - balltimestamp1) >= 1000)
     runMotor(in1, in2, motorsenstate1);
   if ((unsigned long)(millis() - balltimestamp2) >= 1000)
     runMotor(in3, in4, motorsenstate2);
+
+  if (retraceLightLeft)
+  {
+    // remove the balls
+    Ball bl = ballsInSystemQueueL.get(0);
+    if (millis() - bl.reedSwitchTimestamp >= RETRACE_TIME)
+    {
+      retraceLightLeft = false;
+      ballsInSystemQueueL.remove(0);
+    }
+  }
+
+  if (retraceLightRight)
+  {
+    // remove the balls
+    Ball br = ballsInSystemQueueR.get(0);
+    if (millis() - br.reedSwitchTimestamp >= RETRACE_TIME)
+    {
+      retraceLightRight = false;
+      ballsInSystemQueueR.remove(0);
+    }
+  }
 }
 
-void runMotor(int in1, int in2, bool motorsen) {
+void runMotor(int in1, int in2, bool motorsen)
+{
   // TODO: Replace motorsensor and ballsensor with interrupts.
- 	if (motorsen == true) {
+  if (motorsen == true)
+  {
     digitalWrite(in1, HIGH);
     digitalWrite(in2, LOW);
   }
-  else {
+  else
+  {
     // Turn off motors.
     digitalWrite(in1, LOW);
     digitalWrite(in2, LOW);
