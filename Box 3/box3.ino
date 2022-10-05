@@ -3,6 +3,9 @@
 #include <Adafruit_NeoPixel.h>
 #include <LinkedList.h>
 
+#define RETRACE_TIME = 1000; // TO DO: get the exact value
+#define SPIRAL_TIME = 2000;  // TO DO: get the exact value
+
 unsigned long motortimestamp1 = 0;
 unsigned long motortimestamp2 = 0;
 unsigned long balltimestamp1 = 0;
@@ -12,9 +15,9 @@ bool motorsenstate2 = false;
 
 bool retraceLightLeft = false;
 bool retraceLightRight = false;
-bool spiralLed = false
+// bool spiralLed = false;
 
-    int lastState1 = HIGH;
+int lastState1 = HIGH;
 int lastState2 = HIGH;
 
 // ball sensor pins placeholder
@@ -32,9 +35,6 @@ int in3 = 10;
 int in4 = 15;
 int motorSen2 = 3;
 
-long RETRACE_TIME = 1000;   // constant set for now
-long TIME_TO_SPIRAL = 2000; // constant set for now
-
 struct Ball
 {
   unsigned long reedSwitchTimestamp;
@@ -45,7 +45,7 @@ LinkedList<Ball>
 LinkedList<Ball>
     ballsInSystemQueueR = LinkedList<Ball>(); // right path queue
 
-LinkedList<Ball> ballsInSpiral = LinkedList<Ball>();
+LinkedList<Ball> ballsInSpiral = LinkedList<Ball>(); // spiral path queue
 
 void setup()
 {
@@ -111,7 +111,7 @@ void rightRetracePath()
   motorsenstate2 = false;
   retraceLightRight = true;
   Ball br = {millis()};
-  ballsInSystemQueueR.add(bl);
+  ballsInSystemQueueR.add(br);
 }
 
 void loop()
@@ -135,23 +135,34 @@ void loop()
 
   if (retraceLightLeft)
   {
-    // remove the balls
+    // get the ball from head of the queue
     Ball bl = ballsInSystemQueueL.get(0);
     if (millis() - bl.reedSwitchTimestamp >= RETRACE_TIME)
     {
       retraceLightLeft = false;
-      ballsInSystemQueueL.remove(0);
+      Ball removedBall = ballsInSystemQueueL.remove(0);
+      ballsInSpiral.add(removedBall);
     }
   }
 
   if (retraceLightRight)
   {
-    // remove the balls
+    // get the ball from head of the queue
     Ball br = ballsInSystemQueueR.get(0);
     if (millis() - br.reedSwitchTimestamp >= RETRACE_TIME)
     {
       retraceLightRight = false;
-      ballsInSystemQueueR.remove(0);
+      Ball removedBall = ballsInSystemQueueR.remove(0);
+      ballsInSpiral.add(removedBall);
+    }
+  }
+
+  if (ballsInSpiral.size() > 0) // there is something in spiral
+  {
+    Ball bl = ballsInSpiral.get(0);
+    if (millis() - bl.reedSwitchTimestamp >= SPIRAL_TIME)
+    {
+      ballsInSpiral.remove(0);
     }
   }
 }
