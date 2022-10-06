@@ -4,6 +4,26 @@
 unsigned long startLeftMillis;
 unsigned long startRightMillis;
 
+int redColor = 100;
+int greenColor = 100;
+int blueColor = 100;
+
+//--------------------------------------------\\
+
+Servo topServo;
+int topServoPin = 8;
+int topServoPos = 1;
+
+int topSensorState = 0;
+int topSensorLastState = HIGH;
+int topSensorPin  = 12;
+
+int spiralStripPin = 5;
+int spiralNumStripPixels = 32;
+int spiralLightSequence = 0;
+
+bool changeStripColour = false;
+
 //--------------------------------------------\\
 
 Servo leftRetraceServo;
@@ -40,132 +60,201 @@ bool rotateRightServo = false;
 
 //--------------------------------------------\\
 
+Adafruit_NeoPixel spiralStrip(spiralNumStripPixels , spiralStripPin , NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel leftRetraceStrip(leftRetraceNumStripPixels, leftRetraceStripPin, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel rightRetraceStrip(rightRetraceNumStripPixels, rightRetraceStripPin, NEO_GRB + NEO_KHZ800);
 
 //--------------------------------------------------------------------------------------------------------------\\
 
 void setup(){
-	Serial.begin(9600);
-	unsigned long currentTime = millis();
-	leftRetraceServo.attach (leftRetraceServoPin);
-	leftRetraceServo.write(0);
+  Serial.begin(9600);
+  unsigned long currentTime = millis();
+  
+  spiralStrip.begin();
+  changeTopStripCol();
 
-	leftRetraceStrip.begin();
-	leftRetraceRedColour();
+  topServo.attach(topServoPin);
+  topServo.write(0);
+  
+  leftRetraceServo.attach (leftRetraceServoPin);
+  leftRetraceServo.write(0);
 
-	rightRetraceServo.attach (rightRetraceServoPin);
-	rightRetraceServo.write(0);
+  leftRetraceStrip.begin();
+  leftRetraceRedColour();
 
-	rightRetraceStrip.begin();
-	rightRetraceRedColour();
+  rightRetraceServo.attach (rightRetraceServoPin);
+  rightRetraceServo.write(0);
 
-	pinMode(leftSensorPin, INPUT);
-    pinMode(rightSensorPin, INPUT);
+  rightRetraceStrip.begin();
+  rightRetraceRedColour();
 
-	PCICR |= B00000001;
-	PCMSK0 |= B00101000;
+  pinMode(leftSensorPin, INPUT);
+  pinMode(rightSensorPin, INPUT);
+  pinMode(topSensorPin, INPUT);
+
+  PCICR |= B00000001;
+  PCMSK0 |= B00111000;
 }
 
 void loop(){
-	if (runLeftRetrace == true){
-		if(leftBallStationary == true){
-			leftStationaryBall();
-			leftBallStationary = false;
-		}
+  if(changeStripColour == true){
+    setColor();
+    changeTopStripCol();
+    changeStripColour = false;
+  }
+  
+  if (runLeftRetrace == true){
+    if(leftBallStationary == true){
+      leftStationaryBall();
+      leftBallStationary = false;
+    }
 
-		if(millis() - startLeftMillis >= 1000 && rotateLeftServo == true){
-			leftReleaseBall();
-			rotateLeftServo = false;
-		}
+    if(millis() - startLeftMillis >= 1000 && rotateLeftServo == true){
+      leftReleaseBall();
+      rotateLeftServo = false;
+    }
 
-		if(millis() - startLeftMillis >= 3000){ //bufefr
-			leftRetraceRedColour();
-			runLeftRetrace = false;
-		}
-	}
+    if(millis() - startLeftMillis >= 3000){ //bufefr
+      leftRetraceRedColour();
+      runLeftRetrace = false;
+    }
+  }
 
-	if (runRightRetrace == true){
-		if(rightBallStationary == true){
-			rightStationaryBall();
-			rightBallStationary = false;
-		}
+  if (runRightRetrace == true){
+    if(rightBallStationary == true){
+      rightStationaryBall();
+      rightBallStationary = false;
+    }
 
-		if(millis() - startRightMillis >= 1000 && rotateRightServo == true){
-			rightReleaseBall();
-			rotateRightServo = false;
-		}
+    if(millis() - startRightMillis >= 1000 && rotateRightServo == true){
+      rightReleaseBall();
+      rotateRightServo = false;
+    }
 
-		if(millis() - startRightMillis >= 3000){ //bufefr
-			rightRetraceRedColour();
-			runRightRetrace = false;
-		}
-	}
+    if(millis() - startRightMillis >= 3000){ //bufefr
+      rightRetraceRedColour();
+      runRightRetrace = false;
+    }
+  }
 }
 
 ISR(PCINT0_vect){
-	if (digitalRead(leftSensorPin) == HIGH){
-		startLeftMillis = millis();
-		leftBallStationary = true;
-		rotateLeftServo = true;
-		runLeftRetrace = true;
-	}
+  if (digitalRead(topSensorPin) == HIGH){
+    changeStripColour = true;
+  }
+  
+  if (digitalRead(leftSensorPin) == HIGH){
+    startLeftMillis = millis();
+    leftBallStationary = true;
+    rotateLeftServo = true;
+    runLeftRetrace = true;
+  }
 
-	if (digitalRead(rightSensorPin) == HIGH){
-		startRightMillis = millis();
-		rightBallStationary = true;
-		rotateRightServo = true;
-		runRightRetrace = true;
-	}
+  if (digitalRead(rightSensorPin) == HIGH){
+    startRightMillis = millis();
+    rightBallStationary = true;
+    rotateRightServo = true;
+    runRightRetrace = true;
+  }
+}
+
+//--------------------------------------------------------------------------------------------------------------\\
+
+void setColor(){
+  redColor = random(0, 255);
+  greenColor = random(0,255);
+  blueColor = random(0, 255);
+}
+
+void changeTopServo(int topServoPos){
+  if(topServoPos % 2 == 0){
+      topServo.write(90);
+    }
+  if(topServoPos % 2 != 0){
+      topServo.write(0);
+    }
+}
+
+void changeTopStripCol() {
+  setColor();
+  if (spiralLightSequence == 0) {
+    changeTopServo(topServoPos);
+    for (int i = 0; i < spiralNumStripPixels ; i++) {
+      spiralStrip.setPixelColor(i, spiralStrip.Color(redColor, greenColor, blueColor));
+      spiralStrip.show();
+    }
+    spiralLightSequence++;
+    topServoPos++;
+  }
+  
+  else if (spiralLightSequence == 1) {
+    changeTopServo(topServoPos);
+    for (int i = 0; i < spiralNumStripPixels ; i++) {
+      spiralStrip.setPixelColor(i, spiralStrip.Color(redColor, greenColor, blueColor));
+      spiralStrip.show();
+    }
+    spiralLightSequence++;
+    topServoPos++;
+  }
+  
+  else {
+    changeTopServo(topServoPos);
+    for (int i = 0; i < spiralNumStripPixels ; i++) {
+     spiralStrip.setPixelColor(i, spiralStrip.Color(redColor, greenColor, blueColor));
+     spiralStrip.show();
+    }
+    spiralLightSequence = 0;
+    topServoPos++;
+  }
 }
 
 //--------------------------------------------------------------------------------------------------------------\\
 
 void rightStationaryBall(){
-	for (int i = 0; i < rightRetraceNumStripPixels; i++){
-		rightRetraceStrip.setPixelColor(i, rightRetraceStrip.Color(0, 0, 255));
-		rightRetraceStrip.show();
-	}
+  for (int i = 0; i < rightRetraceNumStripPixels; i++){
+    rightRetraceStrip.setPixelColor(i, rightRetraceStrip.Color(0, 0, 255));
+    rightRetraceStrip.show();
+  }
 }
 
 void rightReleaseBall(){
-	for (int i = 0; i < rightRetraceNumStripPixels; i++){
-		rightRetraceStrip.setPixelColor(i, rightRetraceStrip.Color(0, 255, 0));
-		rightRetraceStrip.show();
-	}
-	rightRetraceServo.write(180);
+  for (int i = 0; i < rightRetraceNumStripPixels; i++){
+    rightRetraceStrip.setPixelColor(i, rightRetraceStrip.Color(0, 255, 0));
+    rightRetraceStrip.show();
+  }
+  rightRetraceServo.write(180);
 }
 
 void rightRetraceRedColour() {
-	for (int i = 0; i < rightRetraceNumStripPixels; i++){
-		rightRetraceStrip.setPixelColor(i, rightRetraceStrip.Color(255, 0, 0));
-		rightRetraceStrip.show();
-	}
-	rightRetraceServo.write(0);
+  for (int i = 0; i < rightRetraceNumStripPixels; i++){
+    rightRetraceStrip.setPixelColor(i, rightRetraceStrip.Color(255, 0, 0));
+    rightRetraceStrip.show();
+  }
+  rightRetraceServo.write(0);
 }
 
 //--------------------------------------------------------------------------------------------------------------\\
 
 void leftStationaryBall(){
-	//Blue LED strip when ball is stationary
-	for (int i = 0; i < leftRetraceNumStripPixels; i++){
-		leftRetraceStrip.setPixelColor(i, leftRetraceStrip.Color(0, 0, 255));
-		leftRetraceStrip.show();
-	}
+  //Blue LED strip when ball is stationary
+  for (int i = 0; i < leftRetraceNumStripPixels; i++){
+    leftRetraceStrip.setPixelColor(i, leftRetraceStrip.Color(0, 0, 255));
+    leftRetraceStrip.show();
+  }
 }
 
 void leftReleaseBall(){
-	for (int i = 0; i < leftRetraceNumStripPixels; i++){
-		leftRetraceStrip.setPixelColor(i, leftRetraceStrip.Color(0, 255, 0));
-		leftRetraceStrip.show();
-	}
-	leftRetraceServo.write(180);
+  for (int i = 0; i < leftRetraceNumStripPixels; i++){
+    leftRetraceStrip.setPixelColor(i, leftRetraceStrip.Color(0, 255, 0));
+    leftRetraceStrip.show();
+  }
+  leftRetraceServo.write(180);
 }
 
 void leftRetraceRedColour() {
-	for (int i = 0; i < leftRetraceNumStripPixels; i++){
-		leftRetraceStrip.setPixelColor(i, leftRetraceStrip.Color(255, 0, 0));
-		leftRetraceStrip.show();
-	}
-	leftRetraceServo.write(0);
+  for (int i = 0; i < leftRetraceNumStripPixels; i++){
+    leftRetraceStrip.setPixelColor(i, leftRetraceStrip.Color(255, 0, 0));
+    leftRetraceStrip.show();
+  }
+  leftRetraceServo.write(0);
 }
