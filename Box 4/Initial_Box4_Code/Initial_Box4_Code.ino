@@ -10,6 +10,9 @@ int blueColor = 100;
 
 //--------------------------------------------\\
 
+int pathSwitchLeftIndicatorLightPin = 3;
+int pathSwitchRightIndicatorLightPin = 2;
+
 Servo topServo;
 int topServoPin = 8;
 int topServoPos = 1;
@@ -23,6 +26,8 @@ int spiralNumStripPixels = 32;
 int spiralLightSequence = 0;
 
 bool changeStripColour = false;
+bool rotateTopServo = false;
+bool changeSpiralColour = false;
 
 //--------------------------------------------\\
 
@@ -69,6 +74,9 @@ Adafruit_NeoPixel rightRetraceStrip(rightRetraceNumStripPixels, rightRetraceStri
 void setup(){
   Serial.begin(9600);
   unsigned long currentTime = millis();
+  
+  digitalWrite(pathSwitchLeftIndicatorLightPin, HIGH);
+  digitalWrite(pathSwitchRightIndicatorLightPin, LOW);
   
   spiralStrip.begin();
   changeTopStripCol();
@@ -141,6 +149,8 @@ void loop(){
 ISR(PCINT0_vect){
   if (digitalRead(topSensorPin) == HIGH){
     changeStripColour = true;
+    rotateTopServo = true;
+    changeSpiralColour = true;
   }
   
   if (digitalRead(leftSensorPin) == HIGH){
@@ -167,11 +177,15 @@ void setColor(){
 }
 
 void changeTopServo(int topServoPos){
-  if(topServoPos % 2 == 0){
+  if(topServoPos % 2 == 0){ //for every second ball, the servo will rotate 90 degrees 
       topServo.write(90);
+    digitalWrite(pathSwitchRightIndicatorLightPin, LOW);  
+    digitalWrite(pathSwitchLeftIndicatorLightPin, HIGH);
     }
   if(topServoPos % 2 != 0){
       topServo.write(0);
+      digitalWrite(pathSwitchLeftIndicatorLightPin, LOW);
+  	  digitalWrite(pathSwitchRightIndicatorLightPin, HIGH);
     }
 }
 
