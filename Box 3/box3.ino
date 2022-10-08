@@ -3,6 +3,8 @@
 #include <Adafruit_NeoPixel.h>
 #include <LinkedList.h>
 
+// Timers for LED operation.
+// Defined from reed switch to start of component.
 #define RETRACE_TIME = 1000; // Placeholder value
 #define SPIRAL_TIME = 2000;  // Placeholder value
 
@@ -15,18 +17,23 @@ volatile bool retraceLightLeft = false;
 volatile bool retraceLightRight = false;
 
 // LED configuration
-int stripPin = 12;
+int stripPin = A2;
 int leftRetraceNumStripPixels = 5; // Placeholder numbers until actual number of LEDs are confirmed.
 int rightRetraceNumStripPixels = 5;
 int spiralStripPixels = 10;
-Adafruit_NeoPixel ledStrips(leftRetraceNumStripPixels + rightRetraceNumStripPixels + spiralStripPixels, 
-                            leftRetraceStripPin, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel pixels(leftRetraceNumStripPixels + rightRetraceNumStripPixels + spiralStripPixels, 
+                            stripPin, NEO_RGB + NEO_KHZ800);
 
-// Placeholder indicator LED pins.
-int leftIndicator = A2;
-int rightIndicator = A3;
+// Spiral colours
+int red = 0;
+int green = 255;
+int blue = 0;
 
-// ball sensor pins placeholder
+// Indicator LED pins
+int leftIndicator = A3;
+int rightIndicator = A4;
+
+// Marble sensor pins
 int ballPin1 = A0;
 int ballPin2 = A1;
 
@@ -63,9 +70,13 @@ void setup()
   pinMode(ballPin2, INPUT);
 
   // Set LEDs
-  pinMode(stripPin, OUTPUT);
   pinMode(leftIndicator, OUTPUT);
   pinMode(rightIndicator, OUTPUT);
+
+  pixels.begin();
+  spiralLED();
+  leftPathLED(255, 0, 0);
+  rightPathLED(255, 0, 0);
 
   // Set all the motor control pins to outputs
   pinMode(enA, OUTPUT);
@@ -95,46 +106,65 @@ void setup()
 void loop()
 {
 
-  // Run motors after waiting 1 second.
-  if ((millis() - balltimestamp1) >= 1000)
+  // Run motors after allowing the marble to remain stationary for at least 1 second.
+  if ((millis() - balltimestamp1) >= 1100)
     runMotor(in1, in2, runmotor1);
-  if ((millis() - balltimestamp2) >= 1000)
+  if ((millis() - balltimestamp2) >= 1100)
     runMotor(in3, in4, runmotor2);
 
-  // Determining whether to run LEDs based on flags.
+  /*  Determining whether to run LEDs based on flags.
+      When a marble is about to move down the retrace,
+      the LEDs will turn green for 200ms.
+      Otherwise the LEDs are red.
+  */
   if (retraceLightLeft)
   {
-    // get the ball from head of the queue
+    // get the marble from head of the queue
     Ball bl = ballsInSystemQueueL.get(0);
     if (millis() - bl.reedSwitchTimestamp >= RETRACE_TIME)
     {
-      leftPathLED();
-      retraceLightLeft = false;
-      Ball removedBall = ballsInSystemQueueL.remove(0);
-      ballsInSpiral.add(removedBall);
+      // Check if LEDs have been on for at least 200ms. If so, turn to red.
+      if (millis() - bl.reedSwitchTimestamp >= RETRACE_TIME + 200) 
+      {
+        ballsInSystemQueueL.shift();
+        leftPathLED(255, 0, 0);
+      }
+      else 
+      {
+        leftPathLED(0, 255, 0);
+        retraceLightLeft = false;
+        ballsInSpiral.add(bl);
+      }
     }
   }
 
   if (retraceLightRight)
   {
-    // get the ball from head of the queue
     Ball br = ballsInSystemQueueR.get(0);
     if (millis() - br.reedSwitchTimestamp >= RETRACE_TIME)
     {
-      rightPathLED();
-      retraceLightRight = false;
-      Ball removedBall = ballsInSystemQueueR.remove(0);
-      ballsInSpiral.add(removedBall);
+      if (millis() - br.reedSwitchTimestamp >= RETRACE_TIME + 200) 
+      {
+        Ball removedBall = ballsInSystemQueueR.shift();
+        rightPathLED(255, 0, 0);
+      }
+      else 
+      {
+        rightPathLED(0, 255, 0);
+        retraceLightRight = false;
+        ballsInSpiral.add(bl);
+      }
     }
   }
 
-  if (ballsInSpiral.size() > 0) // there is something in spiral
+  // Spiral LED. Runs if there are elements in spiral queue.
+  if (ballsInSpiral.size() > 0)
   {
     Ball bl = ballsInSpiral.get(0);
     if (millis() - bl.reedSwitchTimestamp >= SPIRAL_TIME)
     {
       spiralLED();
-      ballsInSpiral.remove(0);
+      ballsInSpiral.shift();
     }
   }
 }
@@ -146,7 +176,7 @@ ISR(PCINT1_vect)
     // set LEDs for left path
     digitalWrite(leftIndicator, HIGH);
     digitalWrite(rightIndicator, LOW);
-    // set boolean
+    // set motors to run and current time.
     balltimestamp1 = millis();
     runmotor1 = true;
   }
@@ -155,7 +185,7 @@ ISR(PCINT1_vect)
     // set LEDs for right path
     digitalWrite(leftIndicator, LOW);
     digitalWrite(rightIndicator, HIGH);
-    // set boolean
+    // set motors to run and current time.
     balltimestamp2 = millis();
     runmotor2 = true;
   }
@@ -192,34 +222,40 @@ void runMotor(int in1, int in2, bool runmotor)
   }
 }
 
-// LED functions. The order is currently assumed to be spiral -> left -> right.
-// TODO: Add colours
-// TODO: Turn off left path, right path LEDs.
+/*  Functions relating to the operation of LEDs.
+    The order of LED strips is spiral -> left retrace -> right retrace.
+*/
 void spiralLED()
 {
+  randomColour();
   for (int i = 0; i < spiralStripPixels; i++) 
   {
-    pixels.setPixelColor(i, pixels.Color(255, 0, 0));
+    pixels.setPixelColor(i, pixels.Color(red, green, blue));
     pixels.show();
   }
 }
 
-void leftPathLED()
+void leftPathLED(int r, int g, int b)
 {
   for (int i = spiralStripPixels; i < leftRetraceNumStripPixels + spiralStripPixels; i++) 
   {
-    pixels.setPixelColor(i, pixels.Color(255, 0, 0));
+    pixels.setPixelColor(i, pixels.Color(r, g, b));
     pixels.show();
   }
 }
 
-void rightPathLED()
+void rightPathLED(int r, int g, int b)
 {
   for (int i = leftRetraceNumStripPixels + spiralStripPixels; 
            i < rightRetraceNumStripPixels + leftRetraceNumStripPixels + spiralStripPixels; i++) 
   {
-    pixels.setPixelColor(i, pixels.Color(255, 0, 0));
+    pixels.setPixelColor(i, pixels.Color(r, g, b));
     pixels.show();
   }
 }
 
+void randomColour(){
+  red = random(0, 255);
+  green = random(0,255);
+  blue = random(0, 255);
+}
