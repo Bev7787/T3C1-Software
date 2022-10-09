@@ -18,9 +18,9 @@ volatile bool retraceLightRight = false;
 
 // LED configuration
 int stripPin = A2;
-int leftRetraceNumStripPixels = 5; // Placeholder numbers until actual number of LEDs are confirmed.
-int rightRetraceNumStripPixels = 5;
-int spiralStripPixels = 10;
+int leftRetraceNumStripPixels = 3; // Placeholder numbers until actual number of LEDs are confirmed.
+int rightRetraceNumStripPixels = 3;
+int spiralStripPixels = 6;
 Adafruit_NeoPixel pixels(leftRetraceNumStripPixels + rightRetraceNumStripPixels + spiralStripPixels, 
                             stripPin, NEO_RGB + NEO_KHZ800);
 
@@ -145,14 +145,14 @@ void loop()
     {
       if (millis() - br.reedSwitchTimestamp >= RETRACE_TIME + 200) 
       {
-        Ball removedBall = ballsInSystemQueueR.shift();
+        ballsInSystemQueueR.shift();
         rightPathLED(255, 0, 0);
       }
       else 
       {
         rightPathLED(0, 255, 0);
         retraceLightRight = false;
-        ballsInSpiral.add(bl);
+        ballsInSpiral.add(br);
       }
     }
   }
