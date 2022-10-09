@@ -8,10 +8,10 @@
 #define RETRACE_TIME = 1000; // Placeholder value
 #define SPIRAL_TIME = 2000;  // Placeholder value
 
-volatile unsigned long balltimestamp1 = 0;
-volatile unsigned long balltimestamp2 = 0;
-volatile bool runmotor1 = false;
-volatile bool runmotor2 = false;
+volatile unsigned long ballTimeStamp1 = 0;
+volatile unsigned long ballTimeStamp2 = 0;
+volatile bool runMotor1 = false;
+volatile bool runMotor2 = false;
 
 volatile bool retraceLightLeft = false;
 volatile bool retraceLightRight = false;
@@ -21,8 +21,8 @@ int stripPin = A2;
 int leftRetraceNumStripPixels = 3; // Placeholder numbers until actual number of LEDs are confirmed.
 int rightRetraceNumStripPixels = 3;
 int spiralStripPixels = 6;
-Adafruit_NeoPixel pixels(leftRetraceNumStripPixels + rightRetraceNumStripPixels + spiralStripPixels, 
-                            stripPin, NEO_RGB + NEO_KHZ800);
+Adafruit_NeoPixel pixels(leftRetraceNumStripPixels + rightRetraceNumStripPixels + spiralStripPixels,
+                         stripPin, NEO_RGB + NEO_KHZ800);
 
 // Spiral colours
 int red = 0;
@@ -59,7 +59,6 @@ volatile LinkedList<Ball>
     ballsInSystemQueueR = LinkedList<Ball>(); // right path queue
 
 LinkedList<Ball> ballsInSpiral = LinkedList<Ball>(); // spiral path queue
-
 
 void setup()
 {
@@ -107,10 +106,10 @@ void loop()
 {
 
   // Run motors after allowing the marble to remain stationary for at least 1 second.
-  if ((millis() - balltimestamp1) >= 1100)
-    runMotor(in1, in2, runmotor1);
-  if ((millis() - balltimestamp2) >= 1100)
-    runMotor(in3, in4, runmotor2);
+  if ((millis() - ballTimeStamp1) >= 1100)
+    runMotor(in1, in2, runMotor1);
+  if ((millis() - ballTimeStamp2) >= 1100)
+    runMotor(in3, in4, runMotor2);
 
   /*  Determining whether to run LEDs based on flags.
       When a marble is about to move down the retrace,
@@ -124,12 +123,12 @@ void loop()
     if (millis() - bl.reedSwitchTimestamp >= RETRACE_TIME)
     {
       // Check if LEDs have been on for at least 200ms. If so, turn to red.
-      if (millis() - bl.reedSwitchTimestamp >= RETRACE_TIME + 200) 
+      if (millis() - bl.reedSwitchTimestamp >= RETRACE_TIME + 200)
       {
         ballsInSystemQueueL.shift();
         leftPathLED(255, 0, 0);
       }
-      else 
+      else
       {
         leftPathLED(0, 255, 0);
         retraceLightLeft = false;
@@ -143,12 +142,12 @@ void loop()
     Ball br = ballsInSystemQueueR.get(0);
     if (millis() - br.reedSwitchTimestamp >= RETRACE_TIME)
     {
-      if (millis() - br.reedSwitchTimestamp >= RETRACE_TIME + 200) 
+      if (millis() - br.reedSwitchTimestamp >= RETRACE_TIME + 200)
       {
         ballsInSystemQueueR.shift();
         rightPathLED(255, 0, 0);
       }
-      else 
+      else
       {
         rightPathLED(0, 255, 0);
         retraceLightRight = false;
@@ -228,7 +227,7 @@ void runMotor(int in1, int in2, bool runmotor)
 void spiralLED()
 {
   randomColour();
-  for (int i = 0; i < spiralStripPixels; i++) 
+  for (int i = 0; i < spiralStripPixels; i++)
   {
     pixels.setPixelColor(i, pixels.Color(red, green, blue));
     pixels.show();
@@ -237,7 +236,7 @@ void spiralLED()
 
 void leftPathLED(int r, int g, int b)
 {
-  for (int i = spiralStripPixels; i < leftRetraceNumStripPixels + spiralStripPixels; i++) 
+  for (int i = spiralStripPixels; i < leftRetraceNumStripPixels + spiralStripPixels; i++)
   {
     pixels.setPixelColor(i, pixels.Color(r, g, b));
     pixels.show();
@@ -246,16 +245,17 @@ void leftPathLED(int r, int g, int b)
 
 void rightPathLED(int r, int g, int b)
 {
-  for (int i = leftRetraceNumStripPixels + spiralStripPixels; 
-           i < rightRetraceNumStripPixels + leftRetraceNumStripPixels + spiralStripPixels; i++) 
+  for (int i = leftRetraceNumStripPixels + spiralStripPixels;
+       i < rightRetraceNumStripPixels + leftRetraceNumStripPixels + spiralStripPixels; i++)
   {
     pixels.setPixelColor(i, pixels.Color(r, g, b));
     pixels.show();
   }
 }
 
-void randomColour(){
+void randomColour()
+{
   red = random(0, 255);
-  green = random(0,255);
+  green = random(0, 255);
   blue = random(0, 255);
 }
