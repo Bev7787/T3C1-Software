@@ -1,5 +1,4 @@
-// C++ code
-// Library used: https://www.arduino.cc/reference/en/libraries/adafruit-neopixel/
+// C++ code for box 3.
 #include <Adafruit_NeoPixel.h>
 #include <LinkedList.h>
 
@@ -8,6 +7,7 @@
 #define RETRACE_TIME = 1000; // Placeholder value
 #define SPIRAL_TIME = 2000;  // Placeholder value
 
+// Timestamps utilised from 
 volatile unsigned long ballTimeStamp1 = 0;
 volatile unsigned long ballTimeStamp2 = 0;
 volatile bool runMotor1 = false;
@@ -16,9 +16,9 @@ volatile bool runMotor2 = false;
 volatile bool retraceLightLeft = false;
 volatile bool retraceLightRight = false;
 
-// LED configuration
+// LED strip configuration
 int stripPin = A2;
-int leftRetraceNumStripPixels = 3; // Placeholder numbers until actual number of LEDs are confirmed.
+int leftRetraceNumStripPixels = 3;
 int rightRetraceNumStripPixels = 3;
 int spiralStripPixels = 6;
 Adafruit_NeoPixel pixels(leftRetraceNumStripPixels + rightRetraceNumStripPixels + spiralStripPixels,
@@ -89,7 +89,7 @@ void setup()
   analogWrite(enA, 255);
   analogWrite(enB, 255);
 
-  // Motor off by default
+  // Motor off on initialisation.
   digitalWrite(in1, LOW);
   digitalWrite(in2, LOW);
 
@@ -107,9 +107,9 @@ void loop()
 
   // Run motors after allowing the marble to remain stationary for at least 1 second.
   if ((millis() - ballTimeStamp1) >= 1100)
-    runMotor(in1, in2, runMotor1);
+    motor(in1, in2, runMotor1);
   if ((millis() - ballTimeStamp2) >= 1100)
-    runMotor(in3, in4, runMotor2);
+    motor(in3, in4, runMotor2);
 
   /*  Determining whether to run LEDs based on flags.
       When a marble is about to move down the retrace,
@@ -168,6 +168,7 @@ void loop()
   }
 }
 
+// ISR that is triggered by a change in state of the marble sensors.
 ISR(PCINT1_vect)
 {
   if (digitalRead(ballPin1) == HIGH)
@@ -176,8 +177,8 @@ ISR(PCINT1_vect)
     digitalWrite(leftIndicator, HIGH);
     digitalWrite(rightIndicator, LOW);
     // set motors to run and current time.
-    balltimestamp1 = millis();
-    runmotor1 = true;
+    ballTimeStamp1 = millis();
+    runMotor1 = true;
   }
   if (digitalRead(ballPin2) == HIGH)
   {
@@ -185,14 +186,15 @@ ISR(PCINT1_vect)
     digitalWrite(leftIndicator, LOW);
     digitalWrite(rightIndicator, HIGH);
     // set motors to run and current time.
-    balltimestamp2 = millis();
-    runmotor2 = true;
+    ballTimeStamp2 = millis();
+    runMotor2 = true;
   }
 }
 
+// Retrace path ISR
 void leftRetracePath()
 {
-  runmotor1 = false;
+  runMotor1 = false;
   retraceLightLeft = true;
   Ball bl = {millis()};
   ballsInSystemQueueL.add(bl);
@@ -200,15 +202,16 @@ void leftRetracePath()
 
 void rightRetracePath()
 {
-  runmotor2 = false;
+  runMotor2 = false;
   retraceLightRight = true;
   Ball br = {millis()};
   ballsInSystemQueueR.add(br);
 }
 
-void runMotor(int in1, int in2, bool runmotor)
+// Motor function
+void motor(int in1, int in2, bool runMotor)
 {
-  if (runmotor == true)
+  if (runMotor == true)
   {
     digitalWrite(in1, HIGH);
     digitalWrite(in2, LOW);
