@@ -11,6 +11,8 @@ int blueColour = 0;
 int pathSwitchLeftIndicatorLightPin = 3;
 int pathSwitchRightIndicatorLightPin = 2;
 
+//----------------------------\\
+
 Servo topServo;
 int topServoPin = 8;
 int topServoPos = 1;
@@ -22,6 +24,8 @@ int spiralNumStripPixels = 32;
 int spiralLightSequence = 0;
 
 volatile bool changeStripColour = false;
+
+//----------------------------\\
 
 Servo leftRetraceServo;
 int leftRetraceServoPin = 10;
@@ -36,6 +40,8 @@ volatile bool leftBallStationary = false;
 volatile bool runLeftRetrace = false;
 volatile bool rotateLeftServo = false;
 
+//----------------------------\\
+
 Servo rightRetraceServo;
 int rightRetraceServoPin = 7;
 int rightRetraceServoPos = 0;
@@ -49,9 +55,13 @@ volatile bool rightBallStationary = false;
 volatile bool runRightRetrace = false;
 volatile bool rotateRightServo = false;
 
+//----------------------------\\
+
 Adafruit_NeoPixel spiralStrip(spiralNumStripPixels , spiralStripPin , NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel leftRetraceStrip(leftRetraceNumStripPixels, leftRetraceStripPin, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel rightRetraceStrip(rightRetraceNumStripPixels, rightRetraceStripPin, NEO_GRB + NEO_KHZ800);
+
+//----------------------------------------------------------------------------------------------------------------------------------------\\
 
 void setup()
 {
@@ -166,6 +176,8 @@ ISR(PCINT0_vect)
 	}
 }
 
+//----------------------------------------------------------------------------------------------------------------------------------------\\
+
 /*
 	The purpose of this function is to randomly generate a new colour for
     the strip lights
@@ -242,6 +254,8 @@ void changeTopStripColour()
 	}
 }
 
+//----------------------------------------------------------------------------------------------------------------------------------------\\
+
 /*
 	The purpose of this function is to show the marble is stationary by turning the
     retrace light strip to blue
@@ -282,6 +296,8 @@ void leftRetraceRedColour()
 	}
 	leftRetraceServo.write(30);
 }
+
+//----------------------------------------------------------------------------------------------------------------------------------------\\
 
 /*
 	The purpose of this function is to show the marble is stationary by turning the
