@@ -38,14 +38,14 @@ int ballPin1 = A0;
 int ballPin2 = A1;
 
 // Motor A connections
-int enA = 1;
+int enA = 10;
 int in1 = 4;
-int in2 = 7;
+int in2 = 5;
 int motorSen1 = 2;
 // Motor B connections
-int enB = 9;
-int in3 = 10;
-int in4 = 15;
+int enB = 11;
+int in3 = 6;
+int in4 = 7;
 int motorSen2 = 3;
 
 struct Ball
@@ -65,8 +65,8 @@ void setup()
   // Set sensors
   pinMode(motorSen1, INPUT_PULLUP);
   pinMode(motorSen2, INPUT_PULLUP);
-  pinMode(ballPin1, INPUT);
-  pinMode(ballPin2, INPUT);
+  pinMode(ballPin1, INPUT_PULLUP);
+  pinMode(ballPin2, INPUT_PULLUP);
 
   // Set LEDs
   pinMode(leftIndicator, OUTPUT);
@@ -171,7 +171,7 @@ void loop()
 // ISR that is triggered by a change in state of the marble sensors.
 ISR(PCINT1_vect)
 {
-  if (digitalRead(ballPin1) == HIGH)
+  if (digitalRead(ballPin1) == LOW)
   {
     // set LEDs for left path
     digitalWrite(leftIndicator, HIGH);
@@ -180,7 +180,7 @@ ISR(PCINT1_vect)
     ballTimeStamp1 = millis();
     runMotor1 = true;
   }
-  if (digitalRead(ballPin2) == HIGH)
+  if (digitalRead(ballPin2) == LOW)
   {
     // set LEDs for right path
     digitalWrite(leftIndicator, LOW);
