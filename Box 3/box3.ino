@@ -98,8 +98,8 @@ void setup()
   PCMSK1 |= B00000011;
 
   // Attach reed switch interrupts
-  attachInterrupt(digitalPinToInterrupt(motorSen1), leftRetracePath, RISING);
-  attachInterrupt(digitalPinToInterrupt(motorSen2), rightRetracePath, RISING);
+  attachInterrupt(digitalPinToInterrupt(motorSen1), leftRetracePath, FALLING);
+  attachInterrupt(digitalPinToInterrupt(motorSen2), rightRetracePath, FALLING);
 }
 
 void loop()
