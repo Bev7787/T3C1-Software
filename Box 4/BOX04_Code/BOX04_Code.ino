@@ -1,6 +1,16 @@
 #include <Adafruit_NeoPixel.h>
 #include <Servo.h>
 
+/*
+  To run the code using Buttons:
+    - Comment out lines 98, 109, 120
+    - Change values from LOW to HIGH on lines 178, 182, 190
+
+  When runnin the code with IR Break Beam Sensors, you must ensure that:
+    - Lines 98, 109, 120 are NOT commented out
+    - Values on lines 178, 182, 190 are checking for LOW not HIGH (i.e == LOW)
+*/
+
 int redColour = 0;
 int greenColour = 0;
 int blueColour = 0;
@@ -64,7 +74,6 @@ volatile bool rightReleaseFlag = false;
 
 volatile unsigned long startRightMillis;
 
-
 //----------------------------\\
 
 Adafruit_NeoPixel spiralStrip(spiralNumStripPixels, spiralStripPin, NEO_GRB + NEO_KHZ800);
@@ -86,7 +95,7 @@ void setup() {
   topServo.write(spiralAngle1);
 
   pinMode(topSensorPin, INPUT);
-  // digitalWrite(topSensorPin, HIGH);
+  digitalWrite(topSensorPin, HIGH);
 
   //----------------------------\\
 
@@ -97,7 +106,7 @@ void setup() {
   leftRetraceRedColour();
 
   pinMode(leftSensorPin, INPUT);
-  // digitalWrite(leftSensorPin, HIGH);
+  digitalWrite(leftSensorPin, HIGH);
 
   //----------------------------\\
 
@@ -166,11 +175,11 @@ void loop() {
   variables to true and record current time (where applicable)
  */
 ISR(PCINT0_vect) {
-  if (digitalRead(topSensorPin) == HIGH) { // == LOW
+  if (digitalRead(topSensorPin) == LOW) {
     changeStripColour = true;
   }
 
-  if (digitalRead(leftSensorPin) == HIGH) { // == LOW
+  if (digitalRead(leftSensorPin) == LOW) {
     startLeftMillis = millis();
     leftBallStationary = true;
     rotateLeftServo = true;
@@ -178,7 +187,7 @@ ISR(PCINT0_vect) {
     leftReleaseFlag = true;
   }
 
-  if (digitalRead(rightSensorPin) == HIGH) { // == LOW
+  if (digitalRead(rightSensorPin) == LOW) {
     startRightMillis = millis();
     rightBallStationary = true;
     rotateRightServo = true;
