@@ -4,10 +4,10 @@
 
 // Timers for LED operation.
 // Defined from reed switch to start of component.
-#define RETRACE_TIME = 1000; // Placeholder value
-#define SPIRAL_TIME = 2000;  // Placeholder value
-
-// Timestamps utilised from 
+volatile unsigned long RETRACE_TIME = 1000; // Placeholder value
+volatile unsigned long SPIRAL_TIME = 2000;  // Placeholder value
+volatile unsigned long FIRST_HALF_SPIRAL = 1000;
+// Timestamps utilised from
 volatile unsigned long ballTimeStamp1 = 0;
 volatile unsigned long ballTimeStamp2 = 0;
 volatile bool runMotor1 = false;
@@ -58,7 +58,9 @@ volatile LinkedList<Ball>
 volatile LinkedList<Ball>
     ballsInSystemQueueR = LinkedList<Ball>(); // right path queue
 
-LinkedList<Ball> ballsInSpiral = LinkedList<Ball>(); // spiral path queue
+LinkedList<Ball> ballsInSpiralFirstHalf = LinkedList<Ball>(); // spiral path queue first half
+
+LinkedList<Ball> ballsInSpiralSecondHalf = LinkedList<Ball>(); // spiral path queue second half
 
 void setup()
 {
@@ -132,7 +134,7 @@ void loop()
       {
         leftPathLED(0, 255, 0);
         retraceLightLeft = false;
-        ballsInSpiral.add(bl);
+        ballsInSpiralFirstHalf.add(bl);
       }
     }
   }
@@ -151,19 +153,30 @@ void loop()
       {
         rightPathLED(0, 255, 0);
         retraceLightRight = false;
-        ballsInSpiral.add(br);
+        ballsInSpiralFirstHalf.add(br);
       }
     }
   }
 
   // Spiral LED. Runs if there are elements in spiral queue.
-  if (ballsInSpiral.size() > 0)
+  if (ballsInSpiralFirstHalf.size() > 0)
   {
-    Ball bl = ballsInSpiral.get(0);
+    Ball bl = ballsInSpiralFirstHalf.get(0);
+    if (millis() - bl.reedSwitchTimestamp >= FIRST_HALF_SPIRAL)
+    {
+      spiralLED();
+      ballsInSpiralFirstHalf.shift();
+      ballsInSpiralSecondHalf.add(bl);
+    }
+  }
+
+  if (ballsInSpiralSecondHalf.size() > 0)
+  {
+    Ball bl = ballsInSpiralSecondHalf.get(0);
     if (millis() - bl.reedSwitchTimestamp >= SPIRAL_TIME)
     {
       spiralLED();
-      ballsInSpiral.shift();
+      ballsInSpiralSecondHalf.shift();
     }
   }
 }
