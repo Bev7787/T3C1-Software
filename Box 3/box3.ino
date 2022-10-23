@@ -4,24 +4,33 @@
 
 // Timers for LED operation.
 // Defined from reed switch to start of component.
-volatile unsigned long RETRACE_TIME = 1000; // Placeholder value
-volatile unsigned long SPIRAL_TIME = 2000;  // Placeholder value
-volatile unsigned long FIRST_HALF_SPIRAL = 1000;
-// Timestamps utilised from
+#define RETRACE_TIME = 1000; // Placeholder value
+#define SPIRAL_TIME = 2000;  // Placeholder value
+#define FIRST_HALF_SPIRAL = 1000;
+#define HOLD_TIME = 1100;
+#define MOTOR_RUN_TIME = 200;
+
+// Timestamps utilised from 
 volatile unsigned long ballTimeStamp1 = 0;
 volatile unsigned long ballTimeStamp2 = 0;
+
 volatile bool runMotor1 = false;
 volatile bool runMotor2 = false;
 
 volatile bool retraceLightLeft = false;
 volatile bool retraceLightRight = false;
 
+// Flags used to determine whether to execute certain operations in reed switch debouncing.
+bool reset1 = false;
+bool reset2 = false;
+
 // LED strip configuration
 int stripPin = A2;
 int leftRetraceNumStripPixels = 3;
 int rightRetraceNumStripPixels = 3;
-int spiralStripPixels = 6;
-Adafruit_NeoPixel pixels(leftRetraceNumStripPixels + rightRetraceNumStripPixels + spiralStripPixels,
+int startSpiralStrip = 9;
+int endSpiralStrip = 9;
+Adafruit_NeoPixel pixels(leftRetraceNumStripPixels + rightRetraceNumStripPixels + startSpiralStrip + endSpiralStrip,
                          stripPin, NEO_RGB + NEO_KHZ800);
 
 // Spiral colours
@@ -53,9 +62,9 @@ struct Ball
   unsigned long reedSwitchTimestamp;
 };
 
-volatile LinkedList<Ball>
+LinkedList<Ball>
     ballsInSystemQueueL = LinkedList<Ball>(); // left path queue
-volatile LinkedList<Ball>
+LinkedList<Ball>
     ballsInSystemQueueR = LinkedList<Ball>(); // right path queue
 
 LinkedList<Ball> ballsInSpiralFirstHalf = LinkedList<Ball>(); // spiral path queue first half
@@ -100,63 +109,27 @@ void setup()
   PCMSK1 |= B00000011;
 
   // Attach reed switch interrupts
-  attachInterrupt(digitalPinToInterrupt(motorSen1), leftRetracePath, FALLING);
-  attachInterrupt(digitalPinToInterrupt(motorSen2), rightRetracePath, FALLING);
+  attachInterrupt(digitalPinToInterrupt(motorSen1), leftRetracePath, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(motorSen2), rightRetracePath, CHANGE);
 }
 
 void loop()
 {
+  // Debounce reed switch input.
+  debounceReedInput(runMotor1, ballTimeStamp1, retraceLightLeft, ballsInSystemQueueL, reset1);
+  debounceReedInput(runMotor2, ballTimeStamp2, retraceLightRight, ballsInSystemQueueR, reset2);
 
   // Run motors after allowing the marble to remain stationary for at least 1 second.
-  if ((millis() - ballTimeStamp1) >= 1100)
+  if ((millis() - ballTimeStamp1) >= HOLD_TIME)
     motor(in1, in2, runMotor1);
-  if ((millis() - ballTimeStamp2) >= 1100)
+  if ((millis() - ballTimeStamp2) >= HOLD_TIME)
     motor(in3, in4, runMotor2);
 
-  /*  Determining whether to run LEDs based on flags.
-      When a marble is about to move down the retrace,
-      the LEDs will turn green for 200ms.
-      Otherwise the LEDs are red.
-  */
+  // Run the LEDs on the retrace ramps.
   if (retraceLightLeft)
-  {
-    // get the marble from head of the queue
-    Ball bl = ballsInSystemQueueL.get(0);
-    if (millis() - bl.reedSwitchTimestamp >= RETRACE_TIME)
-    {
-      // Check if LEDs have been on for at least 200ms. If so, turn to red.
-      if (millis() - bl.reedSwitchTimestamp >= RETRACE_TIME + 200)
-      {
-        ballsInSystemQueueL.shift();
-        leftPathLED(255, 0, 0);
-      }
-      else
-      {
-        leftPathLED(0, 255, 0);
-        retraceLightLeft = false;
-        ballsInSpiralFirstHalf.add(bl);
-      }
-    }
-  }
-
+    runRetrace(retraceLightLeft, ballsInSystemQueueL, 0);
   if (retraceLightRight)
-  {
-    Ball br = ballsInSystemQueueR.get(0);
-    if (millis() - br.reedSwitchTimestamp >= RETRACE_TIME)
-    {
-      if (millis() - br.reedSwitchTimestamp >= RETRACE_TIME + 200)
-      {
-        ballsInSystemQueueR.shift();
-        rightPathLED(255, 0, 0);
-      }
-      else
-      {
-        rightPathLED(0, 255, 0);
-        retraceLightRight = false;
-        ballsInSpiralFirstHalf.add(br);
-      }
-    }
-  }
+    runRetrace(retraceLightRight, ballsInSystemQueueR, 1);
 
   // Spiral LED. Runs if there are elements in spiral queue.
   if (ballsInSpiralFirstHalf.size() > 0)
@@ -164,7 +137,7 @@ void loop()
     Ball bl = ballsInSpiralFirstHalf.get(0);
     if (millis() - bl.reedSwitchTimestamp >= FIRST_HALF_SPIRAL)
     {
-      spiralLED();
+      spiralLED(0);
       ballsInSpiralFirstHalf.shift();
       ballsInSpiralSecondHalf.add(bl);
     }
@@ -175,7 +148,7 @@ void loop()
     Ball bl = ballsInSpiralSecondHalf.get(0);
     if (millis() - bl.reedSwitchTimestamp >= SPIRAL_TIME)
     {
-      spiralLED();
+      spiralLED(1);
       ballsInSpiralSecondHalf.shift();
     }
   }
@@ -192,6 +165,8 @@ ISR(PCINT1_vect)
     // set motors to run and current time.
     ballTimeStamp1 = millis();
     runMotor1 = true;
+    reset1 = false;
+
   }
   if (digitalRead(ballPin2) == LOW)
   {
@@ -201,6 +176,7 @@ ISR(PCINT1_vect)
     // set motors to run and current time.
     ballTimeStamp2 = millis();
     runMotor2 = true;
+    reset2 = false;
   }
 }
 
@@ -208,17 +184,31 @@ ISR(PCINT1_vect)
 void leftRetracePath()
 {
   runMotor1 = false;
-  retraceLightLeft = true;
-  Ball bl = {millis()};
-  ballsInSystemQueueL.add(bl);
 }
 
 void rightRetracePath()
 {
   runMotor2 = false;
-  retraceLightRight = true;
-  Ball br = {millis()};
-  ballsInSystemQueueR.add(br);
+}
+
+/*  Generic debouncing function
+    Debounces reed switch input by ignoring input after the motor has activated
+    and before it has reached a certain time in ms.
+*/
+void debounceReedInput(bool runMotor, unsigned long ballTimeStamp, bool retraceLight, 
+                       LinkedList<Ball> ballQueue, bool reset) 
+  {               
+  if (runMotor == false) {
+    if (millis() - (ballTimeStamp + HOLD_TIME) < MOTOR_RUN_TIME) {
+      runMotor = true;
+    }
+    else if (reset == false) {
+      retraceLight = true;
+      Ball bl = {millis()};
+      ballQueue.add(bl);
+      reset = true;
+    }
+  }
 }
 
 // Motor function
@@ -237,22 +227,66 @@ void motor(int in1, int in2, bool runMotor)
   }
 }
 
+/*  Generic function for determining whether to run LEDs based on flags.
+    When a marble is about to move down the retrace, the LEDs will turn 
+    green for 200ms.
+    Otherwise the LEDs are red.
+*/
+void runRetrace(bool retraceLight, LinkedList<Ball> ballQueue, char path)
+{
+  // get the marble from head of the queue
+  Ball bl = ballQueue.get(0);
+  if (millis() - bl.reedSwitchTimestamp >= RETRACE_TIME)
+  {
+    // Check if LEDs have been on for at least 200ms. If so, turn to red.
+    if (millis() - bl.reedSwitchTimestamp >= RETRACE_TIME + 200)
+    {
+      ballQueue.shift();
+      if (path == 0)
+        leftPathLED(255, 0, 0);
+      else
+        rightPathLED(255, 0, 0);
+    }
+    else
+    {
+      if (path == 0)
+        leftPathLED(255, 0, 0);
+      else
+        rightPathLED(255, 0, 0);
+      retraceLight = false;
+      ballsInSpiralFirstHalf.add(bl);
+    }
+  }
+}
+
 /*  Functions relating to the operation of LEDs.
     The order of LED strips is spiral -> left retrace -> right retrace.
 */
-void spiralLED()
+void spiralLED(char loc)
 {
   randomColour();
-  for (int i = 0; i < spiralStripPixels; i++)
+  if (loc == 0)
   {
-    pixels.setPixelColor(i, pixels.Color(red, green, blue));
-    pixels.show();
+    for (int i = 0; i < startSpiralStrip; i++)
+    {
+      pixels.setPixelColor(i, pixels.Color(red, green, blue));
+      pixels.show();
+    }
+  }
+  else
+  {
+    for (int i = startSpiralStrip; i < startSpiralStrip + endSpiralStrip; i++)
+    {
+      pixels.setPixelColor(i, pixels.Color(red, green, blue));
+      pixels.show();
+    }
   }
 }
 
 void leftPathLED(int r, int g, int b)
 {
-  for (int i = spiralStripPixels; i < leftRetraceNumStripPixels + spiralStripPixels; i++)
+  for (int i = startSpiralStrip + endSpiralStrip; 
+       i < leftRetraceNumStripPixels + startSpiralStrip + endSpiralStrip; i++)
   {
     pixels.setPixelColor(i, pixels.Color(r, g, b));
     pixels.show();
@@ -261,8 +295,8 @@ void leftPathLED(int r, int g, int b)
 
 void rightPathLED(int r, int g, int b)
 {
-  for (int i = leftRetraceNumStripPixels + spiralStripPixels;
-       i < rightRetraceNumStripPixels + leftRetraceNumStripPixels + spiralStripPixels; i++)
+  for (int i = leftRetraceNumStripPixels + startSpiralStrip + endSpiralStrip;
+       i < rightRetraceNumStripPixels + leftRetraceNumStripPixels + startSpiralStrip + endSpiralStrip; i++)
   {
     pixels.setPixelColor(i, pixels.Color(r, g, b));
     pixels.show();
