@@ -28,7 +28,7 @@ bool reset2 = false;
 int stripPin = A2;
 int leftRetraceNumStripPixels = 3;
 int rightRetraceNumStripPixels = 3;
-int startSpiralStrip = 9;
+int startSpiralStrip = 10;
 int endSpiralStrip = 9;
 Adafruit_NeoPixel pixels(leftRetraceNumStripPixels + rightRetraceNumStripPixels + startSpiralStrip + endSpiralStrip,
                          stripPin, NEO_RGB + NEO_KHZ800);
@@ -39,7 +39,6 @@ int rightIndicator = A4;
 
 // Marble sensor pins
 int ballPin1 = A0;
-int ballPin2 = A1;
 
 // Motor A connections
 int enA = 10;
@@ -51,6 +50,8 @@ int enB = 11;
 int in3 = 6;
 int in4 = 7;
 int motorSen2 = 3;
+// What side the marble is entering
+bool onLeft = true;
 
 struct Ball
 {
@@ -75,7 +76,6 @@ void setup()
   pinMode(motorSen1, INPUT_PULLUP);
   pinMode(motorSen2, INPUT_PULLUP);
   pinMode(ballPin1, INPUT_PULLUP);
-  pinMode(ballPin2, INPUT_PULLUP);
 
   // Set LEDs
   pinMode(leftIndicator, OUTPUT);
@@ -104,7 +104,7 @@ void setup()
 
   // Setup marble sensor interrupts.
   PCICR |= B00000010;
-  PCMSK1 |= B00000011;
+  PCMSK1 |= B00000010;
 
   // Attach reed switch interrupts
   attachInterrupt(digitalPinToInterrupt(motorSen1), leftRetracePath, CHANGE);
@@ -155,7 +155,7 @@ void loop()
 // ISR that is triggered by a change in state of the marble sensors.
 ISR(PCINT1_vect)
 {
-  if (digitalRead(ballPin1) == LOW)
+  if (onLeft == true)
   {
     // set LEDs for left path
     digitalWrite(leftIndicator, HIGH);
@@ -164,9 +164,9 @@ ISR(PCINT1_vect)
     ballTimeStamp1 = millis();
     runMotor1 = true;
     reset1 = false;
-
+    onLeft = false;
   }
-  if (digitalRead(ballPin2) == LOW)
+  else
   {
     // set LEDs for right path
     digitalWrite(leftIndicator, LOW);
@@ -175,6 +175,7 @@ ISR(PCINT1_vect)
     ballTimeStamp2 = millis();
     runMotor2 = true;
     reset2 = false;
+    onLeft = true;
   }
 }
 
@@ -265,7 +266,7 @@ void spiralLED(Ball bl, char loc)
 {
   if (loc == 0)
   {
-    for (int i = 0; i < startSpiralStrip; i++)
+    for (int i = endSpiralStrip; i < startSpiralStrip + endSpiralStrip; i++)
     {
       pixels.setPixelColor(i, pixels.Color(bl.r, bl.g, bl.b));
       pixels.show();
@@ -273,7 +274,7 @@ void spiralLED(Ball bl, char loc)
   }
   else
   {
-    for (int i = startSpiralStrip; i < startSpiralStrip + endSpiralStrip; i++)
+    for (int i = 0; i < endSpiralStrip; i++)
     {
       pixels.setPixelColor(i, pixels.Color(bl.r, bl.g, bl.b));
       pixels.show();
