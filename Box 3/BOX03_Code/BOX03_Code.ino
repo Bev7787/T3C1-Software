@@ -4,11 +4,11 @@
 
 // Timers for LED operation.
 // Defined from reed switch to start of component.
-#define RETRACE_TIME = 1000; // Placeholder value
-#define SPIRAL_TIME = 2000;  // Placeholder value
-#define FIRST_HALF_SPIRAL = 1000;
-#define HOLD_TIME = 1100;
-#define MOTOR_RUN_TIME = 200;
+unsigned long RETRACE_TIME = 1000; // Placeholder value
+unsigned long SPIRAL_TIME = 2000;  // Placeholder value
+unsigned long FIRST_HALF_SPIRAL = 1000;
+unsigned long HOLD_TIME = 1100;
+unsigned long MOTOR_RUN_TIME = 200;
 
 // Timestamps utilised from 
 volatile unsigned long ballTimeStamp1 = 0;
@@ -32,12 +32,7 @@ int startSpiralStrip = 9;
 int endSpiralStrip = 9;
 Adafruit_NeoPixel pixels(leftRetraceNumStripPixels + rightRetraceNumStripPixels + startSpiralStrip + endSpiralStrip,
                          stripPin, NEO_RGB + NEO_KHZ800);
-
-// Spiral colours
-int red = 0;
-int green = 255;
-int blue = 0;
-
+                         
 // Indicator LED pins
 int leftIndicator = A3;
 int rightIndicator = A4;
@@ -60,6 +55,9 @@ int motorSen2 = 3;
 struct Ball
 {
   unsigned long reedSwitchTimestamp;
+  int r;
+  int g;
+  int b;
 };
 
 LinkedList<Ball>
@@ -84,7 +82,7 @@ void setup()
   pinMode(rightIndicator, OUTPUT);
 
   pixels.begin();
-  spiralLED();
+  spiralSetup();
   leftPathLED(255, 0, 0);
   rightPathLED(255, 0, 0);
 
@@ -137,7 +135,7 @@ void loop()
     Ball bl = ballsInSpiralFirstHalf.get(0);
     if (millis() - bl.reedSwitchTimestamp >= FIRST_HALF_SPIRAL)
     {
-      spiralLED(0);
+      spiralLED(bl, 0);
       ballsInSpiralFirstHalf.shift();
       ballsInSpiralSecondHalf.add(bl);
     }
@@ -148,7 +146,7 @@ void loop()
     Ball bl = ballsInSpiralSecondHalf.get(0);
     if (millis() - bl.reedSwitchTimestamp >= SPIRAL_TIME)
     {
-      spiralLED(1);
+      spiralLED(bl, 1);
       ballsInSpiralSecondHalf.shift();
     }
   }
@@ -205,6 +203,7 @@ void debounceReedInput(bool runMotor, unsigned long ballTimeStamp, bool retraceL
     else if (reset == false) {
       retraceLight = true;
       Ball bl = {millis()};
+      randomColour(bl);
       ballQueue.add(bl);
       reset = true;
     }
@@ -250,9 +249,9 @@ void runRetrace(bool retraceLight, LinkedList<Ball> ballQueue, char path)
     else
     {
       if (path == 0)
-        leftPathLED(255, 0, 0);
+        leftPathLED(0, 255, 0);
       else
-        rightPathLED(255, 0, 0);
+        rightPathLED(0, 255, 0);
       retraceLight = false;
       ballsInSpiralFirstHalf.add(bl);
     }
@@ -262,14 +261,13 @@ void runRetrace(bool retraceLight, LinkedList<Ball> ballQueue, char path)
 /*  Functions relating to the operation of LEDs.
     The order of LED strips is spiral -> left retrace -> right retrace.
 */
-void spiralLED(char loc)
+void spiralLED(Ball bl, char loc)
 {
-  randomColour();
   if (loc == 0)
   {
     for (int i = 0; i < startSpiralStrip; i++)
     {
-      pixels.setPixelColor(i, pixels.Color(red, green, blue));
+      pixels.setPixelColor(i, pixels.Color(bl.r, bl.g, bl.b));
       pixels.show();
     }
   }
@@ -277,7 +275,7 @@ void spiralLED(char loc)
   {
     for (int i = startSpiralStrip; i < startSpiralStrip + endSpiralStrip; i++)
     {
-      pixels.setPixelColor(i, pixels.Color(red, green, blue));
+      pixels.setPixelColor(i, pixels.Color(bl.r, bl.g, bl.b));
       pixels.show();
     }
   }
@@ -303,9 +301,33 @@ void rightPathLED(int r, int g, int b)
   }
 }
 
-void randomColour()
+void randomColour(Ball bl)
 {
-  red = random(0, 255);
-  green = random(0, 255);
-  blue = random(0, 255);
+  bl.r = random(0, 255);
+  bl.g = random(0, 255);
+  bl.b = random(0, 255);
+}
+
+// SETUP FUNCTIONS
+
+void spiralSetup()
+{
+  for (int i = 0; i < startSpiralStrip + endSpiralStrip; i++)
+  {
+    pixels.setPixelColor(i, pixels.Color(0, 255, 0));
+    pixels.show();
+  }
+}
+
+// Reset motors to start position.
+void resetMotors(bool runMotor) 
+  {
+  while (runMotor == true)
+  {            
+    motor(in1, in2, runMotor1);
+    motor(in3, in4, runMotor2);
+  }
+  // Run once more to turn off motors  
+  motor(in1, in2, runMotor1);
+  motor(in3, in4, runMotor2);  
 }
