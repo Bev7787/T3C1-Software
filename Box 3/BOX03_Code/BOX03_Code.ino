@@ -31,7 +31,7 @@ int rightRetraceNumStripPixels = 3;
 int startSpiralStrip = 10;
 int endSpiralStrip = 9;
 Adafruit_NeoPixel pixels(leftRetraceNumStripPixels + rightRetraceNumStripPixels + startSpiralStrip + endSpiralStrip,
-                         stripPin, NEO_RGB + NEO_KHZ800);
+                         stripPin, NEO_GRB + NEO_KHZ800);
                          
 // Indicator LED pins
 int leftIndicator = A3;
@@ -51,7 +51,7 @@ int in3 = 6;
 int in4 = 7;
 int motorSen2 = 3;
 // What side the marble is entering
-bool onLeft = true;
+bool onLeft = false;
 
 struct Ball
 {
@@ -81,7 +81,11 @@ void setup()
   pinMode(leftIndicator, OUTPUT);
   pinMode(rightIndicator, OUTPUT);
 
+  digitalWrite(leftIndicator, LOW);
+  digitalWrite(rightIndicator, LOW);
+
   pixels.begin();
+  pixels.setBrightness(2);
   spiralSetup();
   leftPathLED(255, 0, 0);
   rightPathLED(255, 0, 0);
@@ -95,8 +99,8 @@ void setup()
   pinMode(in4, OUTPUT);
 
   // Set speed
-  analogWrite(enA, 255);
-  analogWrite(enB, 255);
+  analogWrite(enA, 80);
+  analogWrite(enB, 80);
 
   // Motor off on initialisation.
   digitalWrite(in1, LOW);
@@ -104,24 +108,26 @@ void setup()
 
   // Setup marble sensor interrupts.
   PCICR |= B00000010;
-  PCMSK1 |= B00000010;
+  PCMSK1 |= B00000001;
 
   // Attach reed switch interrupts
   attachInterrupt(digitalPinToInterrupt(motorSen1), leftRetracePath, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(motorSen2), rightRetracePath, CHANGE);
+  //attachInterrupt(digitalPinToInterrupt(motorSen2), rightRetracePath, CHANGE);
+
+  
 }
 
 void loop()
 {
   // Debounce reed switch input.
   debounceReedInput(runMotor1, ballTimeStamp1, retraceLightLeft, ballsInSystemQueueL, reset1);
-  debounceReedInput(runMotor2, ballTimeStamp2, retraceLightRight, ballsInSystemQueueR, reset2);
+  //debounceReedInput(runMotor2, ballTimeStamp2, retraceLightRight, ballsInSystemQueueR, reset2);
 
   // Run motors after allowing the marble to remain stationary for at least 1 second.
   if ((millis() - ballTimeStamp1) >= HOLD_TIME)
     motor(in1, in2, runMotor1);
-  if ((millis() - ballTimeStamp2) >= HOLD_TIME)
-    motor(in3, in4, runMotor2);
+  /*if ((millis() - ballTimeStamp2) >= HOLD_TIME)
+    motor(in3, in4, runMotor2);*/
 
   // Run the LEDs on the retrace ramps.
   if (retraceLightLeft)
