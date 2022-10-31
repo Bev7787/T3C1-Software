@@ -1,14 +1,15 @@
 // C++ code for box 3.
 #include <Adafruit_NeoPixel.h>
-#include <LinkedList.h>
+#include <QList.h>
 
 // Timers for LED operation.
-// Defined from reed switch to start of component.
-unsigned long RETRACE_TIME = 1000; // Placeholder value
-unsigned long SPIRAL_TIME = 2000;  // Placeholder value
-unsigned long FIRST_HALF_SPIRAL = 1000;
-unsigned long HOLD_TIME = 1100;
-unsigned long MOTOR_RUN_TIME = 200;
+// Defined from IR Sensor detection to start of component.
+unsigned long HOLD_TIME = 1000;
+unsigned long MOTOR_RUN_TIME = 400;
+unsigned long RETRACE_TIME = HOLD_TIME + 2 * MOTOR_RUN_TIME + 0; // Placeholder value
+unsigned long SPIRAL_TIME = 500;  // Placeholder value
+unsigned long FIRST_HALF_SPIRAL = 500;
+
 
 // Timestamps utilised from 
 volatile unsigned long ballTimeStamp1 = 0;
@@ -16,36 +17,33 @@ volatile unsigned long ballTimeStamp2 = 0;
 
 volatile bool runMotor1 = false;
 volatile bool runMotor2 = false;
+volatile bool *m1 = &runMotor1;
+volatile bool *m2 = &runMotor2;
 
 volatile bool retraceLightLeft = false;
 volatile bool retraceLightRight = false;
-
-// Flags used to determine whether to execute certain operations in reed switch debouncing.
-bool reset1 = false;
-bool reset2 = false;
+volatile bool *rl = &retraceLightLeft;
+volatile bool *rr = &retraceLightRight;
 
 // LED strip configuration
 int stripPin = A2;
 int leftRetraceNumStripPixels = 3;
 int rightRetraceNumStripPixels = 3;
-int startSpiralStrip = 9;
+int startSpiralStrip = 10;
 int endSpiralStrip = 9;
 Adafruit_NeoPixel pixels(leftRetraceNumStripPixels + rightRetraceNumStripPixels + startSpiralStrip + endSpiralStrip,
-                         stripPin, NEO_RGB + NEO_KHZ800);
+                         stripPin, NEO_GRB + NEO_KHZ800);
                          
 // Indicator LED pins
 int leftIndicator = A3;
 int rightIndicator = A4;
-
-// Marble sensor pins
-int ballPin1 = A0;
-int ballPin2 = A1;
 
 // Motor A connections
 int enA = 10;
 int in1 = 4;
 int in2 = 5;
 int motorSen1 = 2;
+
 // Motor B connections
 int enB = 11;
 int in3 = 6;
@@ -54,34 +52,30 @@ int motorSen2 = 3;
 
 struct Ball
 {
-  unsigned long reedSwitchTimestamp;
+  unsigned long timestamp;
   int r;
   int g;
   int b;
 };
 
-LinkedList<Ball>
-    ballsInSystemQueueL = LinkedList<Ball>(); // left path queue
-LinkedList<Ball>
-    ballsInSystemQueueR = LinkedList<Ball>(); // right path queue
-
-LinkedList<Ball> ballsInSpiralFirstHalf = LinkedList<Ball>(); // spiral path queue first half
-
-LinkedList<Ball> ballsInSpiralSecondHalf = LinkedList<Ball>(); // spiral path queue second half
+QList<Ball> leftRetraceQueue;
+QList<Ball> rightRetraceQueue;
+QList<Ball> ballsInSpiralFirstHalf; // spiral path queue first half
+QList<Ball> ballsInSpiralSecondHalf; // spiral path queue second half
 
 void setup()
 {
+  Serial.begin(115200);
   // Set sensors
   pinMode(motorSen1, INPUT_PULLUP);
   pinMode(motorSen2, INPUT_PULLUP);
-  pinMode(ballPin1, INPUT_PULLUP);
-  pinMode(ballPin2, INPUT_PULLUP);
 
   // Set LEDs
   pinMode(leftIndicator, OUTPUT);
   pinMode(rightIndicator, OUTPUT);
 
   pixels.begin();
+  pixels.setBrightness(40);
   spiralSetup();
   leftPathLED(255, 0, 0);
   rightPathLED(255, 0, 0);
@@ -95,128 +89,114 @@ void setup()
   pinMode(in4, OUTPUT);
 
   // Set speed
-  analogWrite(enA, 255);
-  analogWrite(enB, 255);
+  analogWrite(enA, 75);
+  analogWrite(enB, 75);
 
   // Motor off on initialisation.
   digitalWrite(in1, LOW);
   digitalWrite(in2, LOW);
 
-  // Setup marble sensor interrupts.
-  PCICR |= B00000010;
-  PCMSK1 |= B00000011;
+  // Turns LED off due to genius wiring.
+  digitalWrite(leftIndicator, HIGH);
+  digitalWrite(rightIndicator, HIGH);
+
 
   // Attach reed switch interrupts
-  attachInterrupt(digitalPinToInterrupt(motorSen1), leftRetracePath, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(motorSen2), rightRetracePath, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(motorSen1), leftRetracePath, FALLING);
+  attachInterrupt(digitalPinToInterrupt(motorSen2), rightRetracePath, FALLING);
 }
 
 void loop()
 {
-  // Debounce reed switch input.
-  debounceReedInput(runMotor1, ballTimeStamp1, retraceLightLeft, ballsInSystemQueueL, reset1);
-  debounceReedInput(runMotor2, ballTimeStamp2, retraceLightRight, ballsInSystemQueueR, reset2);
-
+  Serial.print("ball 1: ");
+  Serial.println(ballTimeStamp1);
+  Serial.print("ball 2: ");
+  Serial.println(ballTimeStamp2);
+  
   // Run motors after allowing the marble to remain stationary for at least 1 second.
-  if ((millis() - ballTimeStamp1) >= HOLD_TIME)
-    motor(in1, in2, runMotor1);
-  if ((millis() - ballTimeStamp2) >= HOLD_TIME)
-    motor(in3, in4, runMotor2);
+  motor(in1, in2, m1, ballTimeStamp1);
+  motor(in3, in4, m2, ballTimeStamp2);
 
   // Run the LEDs on the retrace ramps.
   if (retraceLightLeft)
-    runRetrace(retraceLightLeft, ballsInSystemQueueL, 0);
+    runRetrace(rl, ballTimeStamp1, 0);
+
   if (retraceLightRight)
-    runRetrace(retraceLightRight, ballsInSystemQueueR, 1);
+    runRetrace(rr, ballTimeStamp2, 1);
 
   // Spiral LED. Runs if there are elements in spiral queue.
-  if (ballsInSpiralFirstHalf.size() > 0)
+  if (ballsInSpiralFirstHalf.length() > 0)
   {
     Ball bl = ballsInSpiralFirstHalf.get(0);
-    if (millis() - bl.reedSwitchTimestamp >= FIRST_HALF_SPIRAL)
+    if (millis() - bl.timestamp >= RETRACE_TIME + FIRST_HALF_SPIRAL)
     {
       spiralLED(bl, 0);
-      ballsInSpiralFirstHalf.shift();
-      ballsInSpiralSecondHalf.add(bl);
+      ballsInSpiralFirstHalf.pop_front();
+      ballsInSpiralSecondHalf.push_back(bl);
     }
   }
 
-  if (ballsInSpiralSecondHalf.size() > 0)
+  if (ballsInSpiralSecondHalf.length() > 0)
   {
     Ball bl = ballsInSpiralSecondHalf.get(0);
-    if (millis() - bl.reedSwitchTimestamp >= SPIRAL_TIME)
+    if (millis() - bl.timestamp >= RETRACE_TIME + FIRST_HALF_SPIRAL + SPIRAL_TIME)
     {
       spiralLED(bl, 1);
-      ballsInSpiralSecondHalf.shift();
+      ballsInSpiralSecondHalf.pop_front();
     }
-  }
-}
-
-// ISR that is triggered by a change in state of the marble sensors.
-ISR(PCINT1_vect)
-{
-  if (digitalRead(ballPin1) == LOW)
-  {
-    // set LEDs for left path
-    digitalWrite(leftIndicator, HIGH);
-    digitalWrite(rightIndicator, LOW);
-    // set motors to run and current time.
-    ballTimeStamp1 = millis();
-    runMotor1 = true;
-    reset1 = false;
-
-  }
-  if (digitalRead(ballPin2) == LOW)
-  {
-    // set LEDs for right path
-    digitalWrite(leftIndicator, LOW);
-    digitalWrite(rightIndicator, HIGH);
-    // set motors to run and current time.
-    ballTimeStamp2 = millis();
-    runMotor2 = true;
-    reset2 = false;
   }
 }
 
 // Retrace path ISR
 void leftRetracePath()
 {
-  runMotor1 = false;
+  if (runMotor1 == false) {
+    ballTimeStamp1 = millis();
+    runMotor1 = true;
+    digitalWrite(leftIndicator, LOW);
+    digitalWrite(rightIndicator, HIGH); 
+    retraceLightLeft = true;
+    Ball bl = {millis(), randomColour(), randomColour(), randomColour()};
+    leftRetraceQueue.push_back(bl);    
+  }
 }
 
 void rightRetracePath()
 {
-  runMotor2 = false;
-}
-
-/*  Generic debouncing function
-    Debounces reed switch input by ignoring input after the motor has activated
-    and before it has reached a certain time in ms.
-*/
-void debounceReedInput(bool runMotor, unsigned long ballTimeStamp, bool retraceLight, 
-                       LinkedList<Ball> ballQueue, bool reset) 
-  {               
-  if (runMotor == false) {
-    if (millis() - (ballTimeStamp + HOLD_TIME) < MOTOR_RUN_TIME) {
-      runMotor = true;
-    }
-    else if (reset == false) {
-      retraceLight = true;
-      Ball bl = {millis()};
-      randomColour(bl);
-      ballQueue.add(bl);
-      reset = true;
-    }
+  if (runMotor2 == false) {
+    ballTimeStamp2 = millis();
+    runMotor2 = true;
+    digitalWrite(leftIndicator, HIGH);
+    digitalWrite(rightIndicator, LOW); 
+    retraceLightRight = true;
+    Ball bl = {millis(), randomColour(), randomColour(), randomColour()};
+    rightRetraceQueue.push_back(bl);  
   }
 }
 
 // Motor function
-void motor(int in1, int in2, bool runMotor)
+void motor(int in1, int in2, volatile bool *runMotor, volatile unsigned long ballTimeStamp)
 {
-  if (runMotor == true)
+  if (*runMotor == true)
   {
-    digitalWrite(in1, HIGH);
-    digitalWrite(in2, LOW);
+    if ((millis() - ballTimeStamp) >= HOLD_TIME + 2 * MOTOR_RUN_TIME)
+    {
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, LOW);
+      *runMotor = false;
+    }
+      
+    else if ((millis() - ballTimeStamp) >= HOLD_TIME + MOTOR_RUN_TIME)
+    {
+      // Turn off motors.
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, HIGH);
+    }
+    else if ((millis() - ballTimeStamp) >= HOLD_TIME)
+    {
+      digitalWrite(in1, HIGH);
+      digitalWrite(in2, LOW);
+    }
   }
   else
   {
@@ -231,29 +211,37 @@ void motor(int in1, int in2, bool runMotor)
     green for 200ms.
     Otherwise the LEDs are red.
 */
-void runRetrace(bool retraceLight, LinkedList<Ball> ballQueue, char path)
+void runRetrace(bool *retraceLight, unsigned long time, char path)
 {
+  Ball bl;  
+  if (path == 0)
+    bl = leftRetraceQueue.get(0);
+  else
+    bl = rightRetraceQueue.get(0);
+    
   // get the marble from head of the queue
-  Ball bl = ballQueue.get(0);
-  if (millis() - bl.reedSwitchTimestamp >= RETRACE_TIME)
+  if (millis() - bl.timestamp >= RETRACE_TIME)
   {
     // Check if LEDs have been on for at least 200ms. If so, turn to red.
-    if (millis() - bl.reedSwitchTimestamp >= RETRACE_TIME + 200)
-    {
-      ballQueue.shift();
-      if (path == 0)
-        leftPathLED(255, 0, 0);
-      else
-        rightPathLED(255, 0, 0);
-    }
-    else
+    if (millis() - bl.timestamp < RETRACE_TIME + 200)
     {
       if (path == 0)
         leftPathLED(0, 255, 0);
       else
         rightPathLED(0, 255, 0);
-      retraceLight = false;
-      ballsInSpiralFirstHalf.add(bl);
+    }
+    else
+    {
+      if (path == 0)
+        leftPathLED(255, 0, 0);
+      else
+        rightPathLED(255, 0, 0);
+      *retraceLight = false;
+      ballsInSpiralFirstHalf.push_back(bl);
+      if (path == 0)
+        leftRetraceQueue.pop_front();
+      else
+        rightRetraceQueue.pop_front();        
     }
   }
 }
@@ -265,7 +253,7 @@ void spiralLED(Ball bl, char loc)
 {
   if (loc == 0)
   {
-    for (int i = 0; i < startSpiralStrip; i++)
+    for (int i = endSpiralStrip; i < startSpiralStrip + endSpiralStrip; i++)
     {
       pixels.setPixelColor(i, pixels.Color(bl.r, bl.g, bl.b));
       pixels.show();
@@ -273,7 +261,7 @@ void spiralLED(Ball bl, char loc)
   }
   else
   {
-    for (int i = startSpiralStrip; i < startSpiralStrip + endSpiralStrip; i++)
+    for (int i = 0; i < endSpiralStrip; i++)
     {
       pixels.setPixelColor(i, pixels.Color(bl.r, bl.g, bl.b));
       pixels.show();
@@ -301,13 +289,6 @@ void rightPathLED(int r, int g, int b)
   }
 }
 
-void randomColour(Ball bl)
-{
-  bl.r = random(0, 255);
-  bl.g = random(0, 255);
-  bl.b = random(0, 255);
-}
-
 // SETUP FUNCTIONS
 
 void spiralSetup()
@@ -319,15 +300,13 @@ void spiralSetup()
   }
 }
 
-// Reset motors to start position.
-void resetMotors(bool runMotor) 
-  {
-  while (runMotor == true)
-  {            
-    motor(in1, in2, runMotor1);
-    motor(in3, in4, runMotor2);
-  }
-  // Run once more to turn off motors  
-  motor(in1, in2, runMotor1);
-  motor(in3, in4, runMotor2);  
+// Provides values to randomise colours for the spiral LED.
+int randomColour()
+{
+  int n = random(0, 90);
+  if (n < 30)
+    return 0;
+  else if (n < 60)
+    return 128;
+  return 255;   
 }
