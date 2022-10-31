@@ -36,7 +36,7 @@ void setup()
 {
 	unsigned long currentTime = millis();
 
-  Serial.begin(9600);
+  // Serial.begin(9600);
 
 	leftRetraceServo.attach (leftRetraceServoPin);
 	leftRetraceServo.write(downPos);
@@ -68,7 +68,7 @@ void loop()
 			rotateLeftServo = false;
 		}
 
-		if(millis() - startLeftMillis >= 1300 && tempflag == true)
+		if(millis() - startLeftMillis >= 1600 && tempflag == true)
 		{
 			leftRetraceRedColour();
 			runLeftRetrace = false;
@@ -86,16 +86,16 @@ ISR(PCINT0_vect)
 {
 	if (digitalRead(leftSensorPin) == LOW)
 	{
-    Serial.println("Sensor Triggered");
+    // Serial.println("Sensor Triggered");
 		startLeftMillis = millis();
 		leftBallStationary = true;
 		rotateLeftServo = true;
 		runLeftRetrace = true;
     tempflag = true;
 	}
-  else{
-    Serial.println("Sensor NOT Triggered");
-  }
+  // else{
+  //   Serial.println("Sensor NOT Triggered");
+  // }
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------\\

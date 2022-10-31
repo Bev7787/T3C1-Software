@@ -15,8 +15,11 @@ int redColour = 0;
 int greenColour = 0;
 int blueColour = 0;
 
-int retraceAngle01 = 30;
-int retraceAngle02 = 100;
+int retraceAngle01 = 10;
+int retraceAngle02 = 80;
+
+int RIGHTretraceAngle01 = 210;
+int RIGHTretraceAngle02 = 120;
 
 //----------------------------\\
 
@@ -41,7 +44,7 @@ int pathSwitchRightIndicatorLightPin = 2;
 //----------------------------\\
 
 Servo leftRetraceServo;
-int leftRetraceServoPin = 10;
+int leftRetraceServoPin = 7;
 int leftRetraceServoPos = 0;
 
 int leftSensorPin = 11;
@@ -59,12 +62,12 @@ volatile unsigned long startLeftMillis;
 //----------------------------\\
 
 Servo rightRetraceServo;
-int rightRetraceServoPin = 7;
+int rightRetraceServoPin = 6;
 int rightRetraceServoPos = 0;
 
 int rightSensorPin = 13;
 
-int rightRetraceStripPin = 6;
+int rightRetraceStripPin = 4;
 int rightRetraceNumStripPixels = 10;
 
 volatile bool rightBallStationary = false;
@@ -111,7 +114,7 @@ void setup() {
   //----------------------------\\
 
   rightRetraceServo.attach(rightRetraceServoPin);
-  rightRetraceServo.write(retraceAngle01);
+  rightRetraceServo.write(RIGHTretraceAngle01);
 
   rightRetraceStrip.begin();
   rightRetraceRedColour();
@@ -143,7 +146,7 @@ void loop() {
       rotateLeftServo = false;
     }
 
-    if (millis() - startLeftMillis >= 1300 && leftReleaseFlag == true) {
+    if (millis() - startLeftMillis >= 1500 && leftReleaseFlag == true) {
       leftRetraceRedColour();
       runLeftRetrace = false;
       leftReleaseFlag = false;
@@ -161,7 +164,7 @@ void loop() {
       rotateRightServo = false;
     }
 
-    if (millis() - startRightMillis >= 1300 && rightReleaseFlag == true) {
+    if (millis() - startRightMillis >= 1500 && rightReleaseFlag == true) {
       rightRetraceRedColour();
       runRightRetrace = false;
       rightReleaseFlag = false;
@@ -179,7 +182,7 @@ ISR(PCINT0_vect) {
     changeStripColour = true;
   }
 
-  if (digitalRead(leftSensorPin) == LOW) {
+  if (digitalRead(leftSensorPin) == LOW && rotateLeftServo == false) {
     startLeftMillis = millis();
     leftBallStationary = true;
     rotateLeftServo = true;
@@ -187,7 +190,7 @@ ISR(PCINT0_vect) {
     leftReleaseFlag = true;
   }
 
-  if (digitalRead(rightSensorPin) == LOW) {
+  if (digitalRead(rightSensorPin) == LOW && rotateRightServo == false) {
     startRightMillis = millis();
     rightBallStationary = true;
     rotateRightServo = true;
@@ -322,7 +325,7 @@ void rightReleaseBall() {
     rightRetraceStrip.setPixelColor(i, rightRetraceStrip.Color(0, 255, 0));
     rightRetraceStrip.show();
   }
-  rightRetraceServo.write(retraceAngle01);
+  rightRetraceServo.write(RIGHTretraceAngle01);
 }
 
 /*
@@ -334,5 +337,5 @@ void rightRetraceRedColour() {
     rightRetraceStrip.setPixelColor(i, rightRetraceStrip.Color(255, 0, 0));
     rightRetraceStrip.show();
   }
-  rightRetraceServo.write(retraceAngle02);
+  rightRetraceServo.write(RIGHTretraceAngle02);
 }
