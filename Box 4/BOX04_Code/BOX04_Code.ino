@@ -18,8 +18,8 @@ int blueColour = 0;
 int retraceAngle01 = 10;
 int retraceAngle02 = 80;
 
-int RIGHTretraceAngle01 = 210;
-int RIGHTretraceAngle02 = 120;
+int RightRetraceAngle01 = 210;
+int RightRetraceAngle02 = 120;
 
 //----------------------------\\
 
@@ -114,7 +114,7 @@ void setup() {
   //----------------------------\\
 
   rightRetraceServo.attach(rightRetraceServoPin);
-  rightRetraceServo.write(RIGHTretraceAngle01);
+  rightRetraceServo.write(RightRetraceAngle01);
 
   rightRetraceStrip.begin();
   rightRetraceRedColour();
@@ -325,7 +325,7 @@ void rightReleaseBall() {
     rightRetraceStrip.setPixelColor(i, rightRetraceStrip.Color(0, 255, 0));
     rightRetraceStrip.show();
   }
-  rightRetraceServo.write(RIGHTretraceAngle01);
+  rightRetraceServo.write(RightRetraceAngle01);
 }
 
 /*
@@ -337,5 +337,5 @@ void rightRetraceRedColour() {
     rightRetraceStrip.setPixelColor(i, rightRetraceStrip.Color(255, 0, 0));
     rightRetraceStrip.show();
   }
-  rightRetraceServo.write(RIGHTretraceAngle02);
+  rightRetraceServo.write(RightRetraceAngle02);
 }
