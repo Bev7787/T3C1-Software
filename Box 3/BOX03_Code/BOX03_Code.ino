@@ -5,10 +5,9 @@
 // Timers for LED operation.
 // Defined from IR Sensor detection to start of component.
 unsigned long HOLD_TIME = 1000;
-unsigned long MOTOR_RUN_TIME = 400;
-unsigned long RETRACE_TIME = HOLD_TIME + 2 * MOTOR_RUN_TIME + 0; // Placeholder value
-unsigned long SPIRAL_TIME = 500;  // Placeholder value
-unsigned long FIRST_HALF_SPIRAL = 500;
+unsigned long MOTOR_RUN_TIME = 300;
+unsigned long RETRACE_TIME = HOLD_TIME + 2 * MOTOR_RUN_TIME;
+unsigned long SPIRAL_TIME = 400; 
 
 
 // Timestamps utilised from 
@@ -29,9 +28,8 @@ volatile bool *rr = &retraceLightRight;
 int stripPin = A2;
 int leftRetraceNumStripPixels = 3;
 int rightRetraceNumStripPixels = 3;
-int startSpiralStrip = 10;
-int endSpiralStrip = 9;
-Adafruit_NeoPixel pixels(leftRetraceNumStripPixels + rightRetraceNumStripPixels + startSpiralStrip + endSpiralStrip,
+int spiralStrip = 19;
+Adafruit_NeoPixel pixels(leftRetraceNumStripPixels + rightRetraceNumStripPixels + spiralStrip,
                          stripPin, NEO_GRB + NEO_KHZ800);
                          
 // Indicator LED pins
@@ -58,14 +56,13 @@ struct Ball
   int b;
 };
 
+// Queues for the retrace and spiral
 QList<Ball> leftRetraceQueue;
 QList<Ball> rightRetraceQueue;
-QList<Ball> ballsInSpiralFirstHalf; // spiral path queue first half
-QList<Ball> ballsInSpiralSecondHalf; // spiral path queue second half
+QList<Ball> spiral; //
 
 void setup()
 {
-  Serial.begin(115200);
   // Set sensors
   pinMode(motorSen1, INPUT_PULLUP);
   pinMode(motorSen2, INPUT_PULLUP);
@@ -108,10 +105,6 @@ void setup()
 
 void loop()
 {
-  Serial.print("ball 1: ");
-  Serial.println(ballTimeStamp1);
-  Serial.print("ball 2: ");
-  Serial.println(ballTimeStamp2);
   
   // Run motors after allowing the marble to remain stationary for at least 1 second.
   motor(in1, in2, m1, ballTimeStamp1);
@@ -125,24 +118,13 @@ void loop()
     runRetrace(rr, ballTimeStamp2, 1);
 
   // Spiral LED. Runs if there are elements in spiral queue.
-  if (ballsInSpiralFirstHalf.length() > 0)
+  if (spiral.length() > 0)
   {
-    Ball bl = ballsInSpiralFirstHalf.get(0);
-    if (millis() - bl.timestamp >= RETRACE_TIME + FIRST_HALF_SPIRAL)
+    Ball bl = spiral.get(0);
+    if (millis() - bl.timestamp >= RETRACE_TIME + SPIRAL_TIME)
     {
-      spiralLED(bl, 0);
-      ballsInSpiralFirstHalf.pop_front();
-      ballsInSpiralSecondHalf.push_back(bl);
-    }
-  }
-
-  if (ballsInSpiralSecondHalf.length() > 0)
-  {
-    Ball bl = ballsInSpiralSecondHalf.get(0);
-    if (millis() - bl.timestamp >= RETRACE_TIME + FIRST_HALF_SPIRAL + SPIRAL_TIME)
-    {
-      spiralLED(bl, 1);
-      ballsInSpiralSecondHalf.pop_front();
+      spiralLED(bl);
+      spiral.pop_front();
     }
   }
 }
@@ -223,7 +205,7 @@ void runRetrace(bool *retraceLight, unsigned long time, char path)
   if (millis() - bl.timestamp >= RETRACE_TIME)
   {
     // Check if LEDs have been on for at least 200ms. If so, turn to red.
-    if (millis() - bl.timestamp < RETRACE_TIME + 200)
+    if (millis() - bl.timestamp < RETRACE_TIME + 400)
     {
       if (path == 0)
         leftPathLED(0, 255, 0);
@@ -237,7 +219,7 @@ void runRetrace(bool *retraceLight, unsigned long time, char path)
       else
         rightPathLED(255, 0, 0);
       *retraceLight = false;
-      ballsInSpiralFirstHalf.push_back(bl);
+      spiral.push_back(bl);
       if (path == 0)
         leftRetraceQueue.pop_front();
       else
@@ -249,30 +231,19 @@ void runRetrace(bool *retraceLight, unsigned long time, char path)
 /*  Functions relating to the operation of LEDs.
     The order of LED strips is spiral -> left retrace -> right retrace.
 */
-void spiralLED(Ball bl, char loc)
+void spiralLED(Ball bl)
 {
-  if (loc == 0)
+  for (int i = 0; i < spiralStrip; i++)
   {
-    for (int i = endSpiralStrip; i < startSpiralStrip + endSpiralStrip; i++)
-    {
-      pixels.setPixelColor(i, pixels.Color(bl.r, bl.g, bl.b));
-      pixels.show();
-    }
-  }
-  else
-  {
-    for (int i = 0; i < endSpiralStrip; i++)
-    {
-      pixels.setPixelColor(i, pixels.Color(bl.r, bl.g, bl.b));
-      pixels.show();
-    }
+    pixels.setPixelColor(i, pixels.Color(bl.r, bl.g, bl.b));
+    pixels.show();
   }
 }
 
 void leftPathLED(int r, int g, int b)
 {
-  for (int i = startSpiralStrip + endSpiralStrip; 
-       i < leftRetraceNumStripPixels + startSpiralStrip + endSpiralStrip; i++)
+  for (int i = spiralStrip; 
+       i < leftRetraceNumStripPixels + spiralStrip; i++)
   {
     pixels.setPixelColor(i, pixels.Color(r, g, b));
     pixels.show();
@@ -281,8 +252,8 @@ void leftPathLED(int r, int g, int b)
 
 void rightPathLED(int r, int g, int b)
 {
-  for (int i = leftRetraceNumStripPixels + startSpiralStrip + endSpiralStrip;
-       i < rightRetraceNumStripPixels + leftRetraceNumStripPixels + startSpiralStrip + endSpiralStrip; i++)
+  for (int i = leftRetraceNumStripPixels + spiralStrip;
+       i < rightRetraceNumStripPixels + leftRetraceNumStripPixels + spiralStrip; i++)
   {
     pixels.setPixelColor(i, pixels.Color(r, g, b));
     pixels.show();
@@ -293,7 +264,7 @@ void rightPathLED(int r, int g, int b)
 
 void spiralSetup()
 {
-  for (int i = 0; i < startSpiralStrip + endSpiralStrip; i++)
+  for (int i = 0; i < spiralStrip; i++)
   {
     pixels.setPixelColor(i, pixels.Color(0, 255, 0));
     pixels.show();
