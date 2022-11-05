@@ -48,6 +48,12 @@ int in3 = 6;
 int in4 = 7;
 int motorSen2 = 3;
 
+int currRed = 255;
+int currBlue = 0;
+int currGreen = 0;
+
+char currColour = 1;
+
 struct Ball
 {
   unsigned long timestamp;
@@ -63,6 +69,9 @@ QList<Ball> spiral; //
 
 void setup()
 {
+
+  Serial.begin(115200);
+  
   // Set sensors
   pinMode(motorSen1, INPUT_PULLUP);
   pinMode(motorSen2, INPUT_PULLUP);
@@ -95,6 +104,8 @@ void setup()
 
   // Turns LED off due to genius wiring.
   digitalWrite(leftIndicator, HIGH);
+
+    
   digitalWrite(rightIndicator, HIGH);
 
 
@@ -107,15 +118,16 @@ void loop()
 {
   
   // Run motors after allowing the marble to remain stationary for at least 1 second.
+ 
   motor(in1, in2, m1, ballTimeStamp1);
   motor(in3, in4, m2, ballTimeStamp2);
 
   // Run the LEDs on the retrace ramps.
   if (retraceLightLeft)
-    runRetrace(rl, ballTimeStamp1, 0);
+    runRetrace(rl, 0);
 
   if (retraceLightRight)
-    runRetrace(rr, ballTimeStamp2, 1);
+    runRetrace(rr, 1);
 
   // Spiral LED. Runs if there are elements in spiral queue.
   if (spiral.length() > 0)
@@ -138,7 +150,8 @@ void leftRetracePath()
     digitalWrite(leftIndicator, LOW);
     digitalWrite(rightIndicator, HIGH); 
     retraceLightLeft = true;
-    Ball bl = {millis(), randomColour(), randomColour(), randomColour()};
+    changeColour();
+    Ball bl = {millis(), currRed, currBlue, currGreen};
     leftRetraceQueue.push_back(bl);    
   }
 }
@@ -151,7 +164,8 @@ void rightRetracePath()
     digitalWrite(leftIndicator, HIGH);
     digitalWrite(rightIndicator, LOW); 
     retraceLightRight = true;
-    Ball bl = {millis(), randomColour(), randomColour(), randomColour()};
+    changeColour();
+    Ball bl = {millis(), currRed, currBlue, currGreen};
     rightRetraceQueue.push_back(bl);  
   }
 }
@@ -190,41 +204,43 @@ void motor(int in1, int in2, volatile bool *runMotor, volatile unsigned long bal
 
 /*  Generic function for determining whether to run LEDs based on flags.
     When a marble is about to move down the retrace, the LEDs will turn 
-    green for 200ms.
+    green for 400ms.
     Otherwise the LEDs are red.
 */
-void runRetrace(bool *retraceLight, unsigned long time, char path)
+void runRetrace(bool *retraceLight, char path)
 {
   Ball bl;  
   if (path == 0)
     bl = leftRetraceQueue.get(0);
   else
     bl = rightRetraceQueue.get(0);
-    
-  // get the marble from head of the queue
-  if (millis() - bl.timestamp >= RETRACE_TIME)
+
+  if (millis() - bl.timestamp >= RETRACE_TIME + 400) 
   {
-    // Check if LEDs have been on for at least 200ms. If so, turn to red.
-    if (millis() - bl.timestamp < RETRACE_TIME + 400)
+    if (path == 0)
+      leftPathLED(255, 0, 0);
+    else
+      rightPathLED(255, 0, 0);   
+    *retraceLight = false;
+    spiral.push_back(bl);
+    if (path == 0)
+      leftRetraceQueue.pop_front();
+    else
+      rightRetraceQueue.pop_front();
+  }
+  else if (millis() - bl.timestamp < RETRACE_TIME + 400)
     {
       if (path == 0)
         leftPathLED(0, 255, 0);
       else
         rightPathLED(0, 255, 0);
     }
+  else
+  {
+    if (path == 0)
+      leftPathLED(255, 0, 0);
     else
-    {
-      if (path == 0)
-        leftPathLED(255, 0, 0);
-      else
-        rightPathLED(255, 0, 0);
-      *retraceLight = false;
-      spiral.push_back(bl);
-      if (path == 0)
-        leftRetraceQueue.pop_front();
-      else
-        rightRetraceQueue.pop_front();        
-    }
+      rightPathLED(255, 0, 0);   
   }
 }
 
@@ -266,18 +282,44 @@ void spiralSetup()
 {
   for (int i = 0; i < spiralStrip; i++)
   {
-    pixels.setPixelColor(i, pixels.Color(0, 255, 0));
+    pixels.setPixelColor(i, pixels.Color(255, 0, 0));
     pixels.show();
   }
 }
 
 // Provides values to randomise colours for the spiral LED.
-int randomColour()
+void changeColour()
 {
-  int n = random(0, 90);
-  if (n < 30)
-    return 0;
-  else if (n < 60)
-    return 128;
-  return 255;   
+  switch (currColour) {
+    case 0:
+      currRed = 255;
+      currBlue = 0;
+      currGreen = 0;          
+      currColour++;
+      break;        
+    case 1:
+      currRed = 255;
+      currBlue = 255;
+      currGreen = 0;
+      currColour++;    
+      break;                     
+    case 2:
+      currRed = 0;
+      currBlue = 255;
+      currGreen = 0;
+      currColour++;   
+      break;           
+    case 3:
+      currRed = 0;
+      currBlue = 0;
+      currGreen = 255;
+      currColour++;     
+      break;         
+    case 4:
+      currRed = 75;
+      currBlue = 0;
+      currGreen = 130;
+      currColour = 0;  
+      break;                    
+  }
 }
