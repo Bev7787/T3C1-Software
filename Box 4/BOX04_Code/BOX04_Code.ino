@@ -16,7 +16,7 @@ int greenColour = 0;
 int blueColour = 0;
 
 int retraceAngle01 = 10;
-int retraceAngle02 = 80;
+int retraceAngle02 = 70;
 
 int RightRetraceAngle01 = 210;
 int RightRetraceAngle02 = 120;
@@ -25,7 +25,7 @@ int RightRetraceAngle02 = 120;
 
 Servo topServo;
 int topServoPin = 8;
-int topServoPos = 1;
+int topServoPos = 0;
 
 int spiralAngle1 = 122;
 int spiralAngle2 = 72;
@@ -33,10 +33,11 @@ int spiralAngle2 = 72;
 int topSensorPin = 12;
 
 int spiralStripPin = 5;
-int spiralNumStripPixels = 32;
+int spiralNumStripPixels = 15;
 int spiralLightSequence = 0;
 
 volatile bool changeStripColour = false;
+volatile unsigned long startTopMillis;
 
 int pathSwitchLeftIndicatorLightPin = 3;
 int pathSwitchRightIndicatorLightPin = 2;
@@ -50,7 +51,7 @@ int leftRetraceServoPos = 0;
 int leftSensorPin = 11;
 
 int leftRetraceStripPin = 9;
-int leftRetraceNumStripPixels = 10;
+int leftRetraceNumStripPixels = 4;
 
 volatile bool leftBallStationary = false;
 volatile bool runLeftRetrace = false;
@@ -68,7 +69,7 @@ int rightRetraceServoPos = 0;
 int rightSensorPin = 13;
 
 int rightRetraceStripPin = 4;
-int rightRetraceNumStripPixels = 10;
+int rightRetraceNumStripPixels = 4;
 
 volatile bool rightBallStationary = false;
 volatile bool runRightRetrace = false;
@@ -87,6 +88,8 @@ Adafruit_NeoPixel rightRetraceStrip(rightRetraceNumStripPixels, rightRetraceStri
 
 void setup() {
   unsigned long currentTime = millis();
+pinMode(pathSwitchLeftIndicatorLightPin, OUTPUT);
+pinMode(pathSwitchRightIndicatorLightPin, OUTPUT);
 
   digitalWrite(pathSwitchLeftIndicatorLightPin, HIGH);
   digitalWrite(pathSwitchRightIndicatorLightPin, LOW);
@@ -131,8 +134,12 @@ void setup() {
 void loop() {
   if (changeStripColour == true) {
     setColour();
-    changeTopStripColour();
-    changeStripColour = false;
+    if(millis() - startTopMillis >= 250){
+      changeTopStripColour();
+      startTopMillis =  millis();
+      changeStripColour = false;
+    }
+    
   }
 
   if (runLeftRetrace == true) {
@@ -179,6 +186,7 @@ void loop() {
  */
 ISR(PCINT0_vect) {
   if (digitalRead(topSensorPin) == LOW) {
+    startTopMillis = millis();
     changeStripColour = true;
   }
 
@@ -222,10 +230,10 @@ void changeTopServo(int topServoPos) {
     digitalWrite(pathSwitchRightIndicatorLightPin, LOW);
     digitalWrite(pathSwitchLeftIndicatorLightPin, HIGH);
   }
-  if (topServoPos % 2 != 0) {
+  else {
     topServo.write(spiralAngle2);
-    digitalWrite(pathSwitchLeftIndicatorLightPin, LOW);
     digitalWrite(pathSwitchRightIndicatorLightPin, HIGH);
+    digitalWrite(pathSwitchLeftIndicatorLightPin, LOW);
   }
 }
 
@@ -238,7 +246,7 @@ void changeTopStripColour() {
   if (spiralLightSequence == 0) {
     changeTopServo(topServoPos);
     for (int i = 0; i < spiralNumStripPixels; i++) {
-      spiralStrip.setPixelColor(i, spiralStrip.Color(redColour, greenColour, blueColour));
+      spiralStrip.setPixelColor(i, spiralStrip.Color(255, 0, 0));
       spiralStrip.show();
     }
     spiralLightSequence++;
@@ -248,7 +256,7 @@ void changeTopStripColour() {
   else if (spiralLightSequence == 1) {
     changeTopServo(topServoPos);
     for (int i = 0; i < spiralNumStripPixels; i++) {
-      spiralStrip.setPixelColor(i, spiralStrip.Color(redColour, greenColour, blueColour));
+      spiralStrip.setPixelColor(i, spiralStrip.Color(0, 255, 0));
       spiralStrip.show();
     }
     spiralLightSequence++;
@@ -258,7 +266,7 @@ void changeTopStripColour() {
   else {
     changeTopServo(topServoPos);
     for (int i = 0; i < spiralNumStripPixels; i++) {
-      spiralStrip.setPixelColor(i, spiralStrip.Color(redColour, greenColour, blueColour));
+      spiralStrip.setPixelColor(i, spiralStrip.Color(0, 0, 255));
       spiralStrip.show();
     }
     spiralLightSequence = 0;
